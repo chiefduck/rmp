@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Users, TrendingDown, Phone, Mail, DollarSign, Target } from 'lucide-react'
 import { StatsCard } from '../components/Dashboard/StatsCard'
 import { RateChart } from '../components/Dashboard/RateChart'
@@ -8,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState({
     totalClients: 0,
     activeOpportunities: 0,
@@ -147,24 +149,36 @@ export const Dashboard: React.FC = () => {
           Quick Actions
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="flex flex-col items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors">
+          <button 
+            onClick={() => navigate('/crm')}
+            className="flex flex-col items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
             <Users className="w-8 h-8 text-blue-600 mb-2" />
             <span className="text-sm font-medium text-blue-900 dark:text-blue-300">Add Client</span>
           </button>
           
-          <button className="flex flex-col items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors">
+          <button 
+            onClick={() => navigate('/calling')}
+            className="flex flex-col items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+          >
             <Phone className="w-8 h-8 text-green-600 mb-2" />
             <span className="text-sm font-medium text-green-900 dark:text-green-300">Start Calling</span>
           </button>
           
-          <button className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors">
+          <button 
+            onClick={() => navigate('/rates')}
+            className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+          >
             <TrendingDown className="w-8 h-8 text-purple-600 mb-2" />
             <span className="text-sm font-medium text-purple-900 dark:text-purple-300">View Rates</span>
           </button>
           
-          <button className="flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors">
+          <button 
+            onClick={() => navigate('/ai-assistant')}
+            className="flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+          >
             <Mail className="w-8 h-8 text-orange-600 mb-2" />
-            <span className="text-sm font-medium text-orange-900 dark:text-orange-300">Send Update</span>
+            <span className="text-sm font-medium text-orange-900 dark:text-orange-300">AI Assistant</span>
           </button>
         </div>
       </div>

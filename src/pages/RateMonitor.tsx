@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { RateChart } from '../components/Dashboard/RateChart'
-import { supabase } from '../lib/supabase'
+import { RateService, RateData } from '../lib/rateService'
 
 interface RateData {
   loan_type: string
@@ -14,29 +14,84 @@ interface RateData {
 }
 
 export const RateMonitor: React.FC = () => {
-  const [rates, setRates] = useState<RateData[]>([
-    { loan_type: '30yr', rate: 7.25, change: -0.05, trend: 'down', lastUpdate: '2 min ago' },
-    { loan_type: 'fha', rate: 6.95, change: -0.12, trend: 'down', lastUpdate: '5 min ago' },
-    { loan_type: 'va', rate: 6.85, change: +0.02, trend: 'up', lastUpdate: '3 min ago' },
-    { loan_type: '15yr', rate: 6.75, change: -0.08, trend: 'down', lastUpdate: '1 min ago' }
-  ])
+  const [rates, setRates] = useState<RateDisplayData[]>([])
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [rateHistory, setRateHistory] = useState<any[]>([])
 
+  interface RateDisplayData {
+    loan_type: string
+    rate: number
+    change: number
+    trend: 'up' | 'down'
+    lastUpdate: string
+  }
+
+  useEffect(() => {
+    fetchRates()
+    fetchRateHistory()
+  }, [])
+
+  const fetchRates = async () => {
+    try {
+      const currentRates = await RateService.getCurrentRates()
+      const displayRates: RateDisplayData[] = []
+
+      // Convert database rates to display format
+      Object.entries(currentRates).forEach(([key, rateData]) => {
+        if (rateData) {
+          displayRates.push({
+            loan_type: key,
+            rate: rateData.rate_value,
+            change: 0, // Would calculate from previous day
+            trend: 'down', // Would determine from change
+            lastUpdate: new Date(rateData.rate_date).toLocaleDateString()
+          })
+        }
+      })
+
+      // If no real data, use mock data for development
+      if (displayRates.length === 0) {
+        setRates([
+          { loan_type: '30yr', rate: 7.25, change: -0.05, trend: 'down', lastUpdate: '2 min ago' },
+          { loan_type: 'fha', rate: 6.95, change: -0.12, trend: 'down', lastUpdate: '5 min ago' },
+          { loan_type: 'va', rate: 6.85, change: +0.02, trend: 'up', lastUpdate: '3 min ago' },
+          { loan_type: '15yr', rate: 6.75, change: -0.08, trend: 'down', lastUpdate: '1 min ago' }
+        ])
+      } else {
+        setRates(displayRates)
+      }
+    } catch (error) {
+      console.error('Error fetching rates:', error)
+      // Fallback to mock data
+      setRates([
+        { loan_type: '30yr', rate: 7.25, change: -0.05, trend: 'down', lastUpdate: '2 min ago' },
+        { loan_type: 'fha', rate: 6.95, change: -0.12, trend: 'down', lastUpdate: '5 min ago' },
+        { loan_type: 'va', rate: 6.85, change: +0.02, trend: 'up', lastUpdate: '3 min ago' },
+        { loan_type: '15yr', rate: 6.75, change: -0.08, trend: 'down', lastUpdate: '1 min ago' }
+      ])
+    }
+  }
+
+  const fetchRateHistory = async () => {
+    try {
+      const history = await RateService.getRateHistory(30, 30) // 30-year rates, last 30 days
+      setRateHistory(history)
+    } catch (error) {
+      console.error('Error fetching rate history:', error)
+    }
+  }
   const refreshRates = async () => {
     setLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      setRates(prev => prev.map(rate => ({
-        ...rate,
-        rate: rate.rate + (Math.random() - 0.5) * 0.1,
-        change: (Math.random() - 0.5) * 0.2,
-        trend: Math.random() > 0.5 ? 'up' : 'down',
-        lastUpdate: 'Just now'
-      })))
+    try {
+      await fetchRates()
+      await fetchRateHistory()
       setLastRefresh(new Date())
+    } catch (error) {
+      console.error('Error refreshing rates:', error)
+    } finally {
       setLoading(false)
-    }, 2000)
+    }
   }
 
   const getLoanTypeLabel = (type: string) => {
@@ -121,7 +176,10 @@ export const RateMonitor: React.FC = () => {
       </div>
 
       {/* Rate Chart */}
-      <RateChart title="30-Year Fixed Rate Trends" />
+      <RateChart 
+        title="30-Year Fixed Rate Trends" 
+        data={rateHistory.map(h => ({ date: h.date, rate: h.rate }))}
+      />
 
       {/* Rate Alerts */}
       <Card>
@@ -204,6 +262,54 @@ export const RateMonitor: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Development Tools */}
+      {import.meta.env.VITE_APP_ENV === 'development' && (
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardHeader>
+            <CardTitle className="text-blue-600 dark:text-blue-400">
+              Development Tools
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Tools for testing rate data integration:
+              </p>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    const mockRates = RateService.generateMockRates(30)
+                    const success = await RateService.storeRateData(mockRates)
+                    if (success) {
+                      await fetchRates()
+                      await fetchRateHistory()
+                      alert('Mock rate data generated successfully!')
+                    } else {
+                      alert('Failed to generate mock data')
+                    }
+                  }}
+                >
+                  Generate Mock Data
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={async () => {
+                    const alerts = await RateService.checkRateAlerts()
+                    console.log('Rate alerts:', alerts)
+                    alert(`Found ${alerts.length} rate alerts - check console`)
+                  }}
+                >
+                  Check Rate Alerts
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

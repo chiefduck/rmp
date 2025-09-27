@@ -13,6 +13,7 @@ import { AutoCalling } from './pages/AutoCalling'
 import { Billing } from './pages/Billing'
 import { Settings } from './pages/Settings'
 import { LandingPage } from './pages/LandingPage'
+import { AuthCallback } from './pages/AuthCallback'
 import { useState } from 'react'
 
 const AppContent: React.FC = () => {
@@ -37,6 +38,9 @@ const AppContent: React.FC = () => {
             )
           } 
         />
+        
+        {/* Auth Callback Route */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
         
         {/* Protected App Routes */}
         <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

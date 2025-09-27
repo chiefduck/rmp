@@ -8,9 +8,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // Database types
 export interface Profile {
   id: string
-  user_id: string
-  email: string
   full_name?: string
+  avatar_url?: string
   company?: string
   phone?: string
   theme: 'light' | 'dark'
@@ -22,7 +21,9 @@ export interface Profile {
 export interface Client {
   id: string
   user_id: string
-  name: string
+  broker_id: string
+  first_name: string
+  last_name: string
   email?: string
   phone?: string
   target_rate?: number
@@ -34,6 +35,19 @@ export interface Client {
   last_contact?: string
   created_at: string
   updated_at: string
+  // Computed field for display
+  name?: string
+}
+
+export interface ClientNote {
+  id: string
+  client_id: string
+  user_id: string
+  note: string
+  note_type: 'general' | 'stage_change' | 'call' | 'email' | 'meeting' | 'follow_up'
+  previous_stage?: string
+  new_stage?: string
+  created_at: string
 }
 
 export interface Mortgage {

@@ -10,6 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<Profile>) => Promise<void>
+  updateEmail: (newEmail: string) => Promise<{ error: any }>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -26,36 +27,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      }
-      setLoading(false)
-    })
-
-    // Listen for auth changes
+    // onAuthStateChange fires immediately with the initial session state,
+    // so we don't need a separate getSession() call.
+    // This establishes a single, reliable source of truth.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id)
+        fetchProfile(session.user.id);
       } else {
-        setProfile(null)
+        setProfile(null);
       }
-      setLoading(false)
-    })
+      setLoading(false); // Only set loading to false after the true state is known
+    });
 
-    return () => subscription.unsubscribe()
-  }, [])
+    // The cleanup function unsubscribes from the listener when the component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single()
 
     if (data) {
@@ -65,10 +63,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data: userData } = await supabase.auth.getUser()
       if (userData.user) {
         const newProfile = {
-          user_id: userData.user.id,
-          email: userData.user.email!,
-          theme: 'light' as const,
-          notifications_enabled: true
+          id: userData.user.id,
+          full_name: userData.user.user_metadata?.full_name || null,
+          company: null,
+          phone: null
         }
         
         const { data: createdProfile } = await supabase
@@ -85,11 +83,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signUp = async (email: string, password: string, userData: any) => {
+    // Configure redirect URL based on environment
+    const redirectTo = import.meta.env.VITE_APP_ENV === 'development' 
+      ? 'http://localhost:5173/auth/callback'
+      : `${window.location.origin}/auth/callback`
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: userData
+        data: userData,
+        emailRedirectTo: redirectTo
       }
     })
     return { data, error }
@@ -108,12 +112,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return
+    if (!user || !initialized) return
 
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .select()
       .single()
 
@@ -122,6 +126,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const updateEmail = async (newEmail: string) => {
+    const { error } = await supabase.auth.updateUser({
+      email: newEmail
+    })
+    return { error }
+  }
   const value: AuthContextType = {
     user,
     profile,
@@ -129,7 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signIn,
     signOut,
-    updateProfile
+    updateProfile,
+    updateEmail
   }
 
   return (

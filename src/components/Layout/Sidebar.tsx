@@ -62,9 +62,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
             <NavLink
               key={item.path}
               to={item.path}
-              className={`
+              className={({ isActive }) => `
                 w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left
                 transition-all duration-200 group
+                ${isActive ? '' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}
               `}
               style={({ isActive }) => ({
                 background: isActive 
@@ -76,8 +77,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
             >
               {({ isActive }) => (
                 <>
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300'}`} />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`} />
+                  <span className={`font-medium ${isActive ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{item.label}</span>
                 </>
               )}
             </NavLink>

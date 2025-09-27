@@ -1,0 +1,125 @@
+# Rate Monitor Pro MVP
+
+A comprehensive rate monitoring and CRM platform for mortgage loan officers to track rates and manage client relationships.
+
+## 🚀 Project Status
+
+### ✅ Phase 1 Complete - Authentication & Billing
+- Full authentication system (signup, login, email verification)
+- Complete Stripe billing integration with webhooks
+- 14-day trial system that auto-creates for new users
+- Subscription management with Stripe Customer Portal
+- Clean database schema with all required tables
+- All Supabase Edge Functions working
+
+### ✅ Phase 2 Complete - CRM Foundation
+- **Improved AddClientModal**: 3-step wizard with validation
+  - Step 1: Basic client info (name, email, phone)
+  - Step 2: Loan details (amount, rate, credit score, type)
+  - Step 3: Notes and summary
+  - Real-time form validation (email format, phone digits, credit score ranges)
+  - Proper input backgrounds and visual feedback
+
+- **Enhanced ClientDetailsModal**: Full note management
+  - Add/delete client notes with timestamps
+  - Different note types (general, stage_change, call, email, meeting)
+  - Fixed input isolation (no more cloning between cards)
+  - Proper confirmation dialogs
+
+- **Client Management**: Complete CRUD operations
+  - Delete clients with confirmation
+  - Updated ClientCard with glassmorphism effects
+  - Better visual hierarchy and premium UI
+  - Proper error handling and user feedback
+
+- **Database Improvements**:
+  - Created `client_notes` table with RLS policies
+  - Soft delete support for clients
+  - Proper foreign key relationships and cascading
+
+### 🎯 Phase 3 Goal - Two-Section CRM Pipeline
+- **Rate Monitor Section**: Closed deals for refi tracking
+- **Active Pipeline Section**: Drag-and-drop kanban board
+- Volume tracking and analytics dashboard
+- Smart automations and rate alerts
+
+### 🛡️ Phase 4 Goal - Pre-Launch Production Checklist
+- **Code Cleanup**: Remove all console.logs and debug code
+- **Error Handling**: Implement proper error tracking (Sentry/LogRocket)
+- **Performance Optimization**: Code splitting, lazy loading, bundle analysis
+- **Security Audit**: Remove hardcoded keys, verify RLS policies, test auth flows
+- **Production Logging**: Environment-based logging strategy
+- **User Experience**: Toast notifications, loading states, error boundaries
+- **Testing**: End-to-end testing, edge cases, mobile responsiveness
+- **Monitoring**: Analytics setup, performance monitoring, uptime checks
+- **Documentation**: API docs, deployment guide, troubleshooting guide
+
+## 🛠 Tech Stack
+- **Frontend**: React + Vite + TypeScript
+- **Styling**: Tailwind CSS with glassmorphism effects
+- **Backend**: Supabase (auth, database, edge functions)
+- **Payments**: Stripe (billing, webhooks, customer portal)
+- **Rate Data**: Python scraping from Mortgage News Daily
+
+## 🔧 Current User Flow
+1. **Signup** → Email verification → Onboarding billing page
+2. **14-day trial** starts automatically → User explores features
+3. **Subscribe anytime** → Stripe checkout → Active subscription
+4. **CRM Management**: Add clients, manage notes, track pipeline
+5. **Cancel through** Stripe portal (remains active until period end)
+
+## 📁 Key Files Structure
+```
+src/
+├── components/
+│   ├── CRM/
+│   │   ├── AddClientModal.tsx (3-step wizard)
+│   │   ├── ClientCard.tsx (glassmorphism effects)
+│   │   ├── ClientDetailsModal.tsx (note management)
+│   │   └── EditClientModal.tsx
+│   └── ui/ (reusable components)
+├── pages/
+│   └── CRM.tsx (main CRM page)
+├── utils/
+│   └── clientUtils.ts (delete operations)
+└── lib/
+    └── supabase.ts (database client)
+```
+
+## 🗄️ Database Schema
+- `users` - User accounts and profiles
+- `subscriptions` - Stripe billing data
+- `clients` - Client information and loan details
+- `client_notes` - Timestamped notes and activity logs
+- `rate_data` - Historical rate information (planned)
+
+## 🔜 Next Steps
+1. **Phase 3**: Build two-section CRM layout (Rate Monitor + Active Pipeline)
+2. **Phase 3**: Implement drag-and-drop functionality for pipeline stages
+3. **Phase 3**: Add volume tracking and analytics dashboard
+4. **Phase 3**: Create rate monitoring alerts system
+5. **Phase 4**: Production cleanup and security audit
+6. **Phase 4**: Performance optimization and monitoring setup
+7. **Launch**: Deploy to production with proper error tracking
+
+## 🚧 Known Issues
+- Rate monitoring backend not yet implemented
+- Need drag-and-drop library integration
+- Volume tracking dashboard pending
+- Console.logs need cleanup for production
+- Error handling needs toast notifications
+- Performance optimization pending
+
+## 💡 Key Features Working
+- ✅ User authentication and billing
+- ✅ Client CRUD operations
+- ✅ Note management with timestamps
+- ✅ Form validation and error handling
+- ✅ Glassmorphism UI effects
+- ✅ Dark mode support
+- ✅ Responsive design
+
+---
+
+**Last Updated**: Phase 2 Complete - CRM Foundation Ready
+**Next Milestone**: Two-Section Pipeline Structure
