@@ -674,3 +674,98 @@ curl -H "Authorization: Bearer YOUR_KEY" YOUR_FUNCTION_URL
 - [ ] Code refactoring and optimization
 
 **Target MVP Completion:** Next development phase focusing on historical charts, alerts, and notifications before final code audit and launch preparation.
+
+# Development Session Continuation Prompt
+
+I'm working on a **premium mortgage broker CRM** called "Rate Monitor Pro" built with **Vite + React + TypeScript + Supabase**. We're transforming it from a basic tool into a **$1000/month premium SaaS** with glassmorphism design and real data throughout.
+
+## ✅ What We Accomplished
+
+**Successfully imported 3,996 historical rate records** into Supabase:
+- 30yr Conventional: 261 weekly records (Freddie Mac)
+- 30yr VA/FHA/Jumbo: 1,245 daily records each (Optimal Blue via FRED)
+- 15yr Conventional: 261 weekly records (Freddie Mac)
+- Date range: September 2020 - September 2025
+
+**Built premium HistoricalRateChart component** (`src/components/RateMonitor/HistoricalRateChart.tsx`):
+- Interactive loan type toggles with emoji icons
+- Time range selector (30D, 90D, 1Y, 5Y)
+- Real Supabase data integration
+- Glassmorphism styling for premium feel
+- Recharts library for visualizations
+
+**Database schema** properly mapped:
+```sql
+rate_history table:
+- rate_value (numeric) - actual rate percentage  
+- rate_date (date) - date of rate
+- loan_type (varchar) - conventional, va, fha, jumbo, 15yr_conventional
+- term_years (integer) - 15 or 30
+- rate_type (text) - market/promotional
+```
+
+## 🐛 CRITICAL ISSUES TO FIX
+
+### Issue #1: Conventional Line Invisible on Chart
+**Problem**: 30yr conventional data loads correctly (confirmed in console: "52 data points, visible: true, sampleData: 6.12") but the line doesn't appear on the chart. Other lines (VA, FHA, Jumbo, 15yr) display perfectly.
+
+**What we tried**:
+- Changed color from purple (#8B5CF6) to red (#DC2626)
+- Increased stroke width to 4px
+- Confirmed data structure is correct
+- Verified 52 conventional records exist in correct date range
+- Console shows line is being rendered
+
+**Current status**: Data is there, line renders in code, but not visible in UI. Needs root cause analysis.
+
+### Issue #2: Rate Accuracy Discrepancy  
+**Problem**: Our 30yr conventional rate shows 6.30% but Mortgage News Daily shows 6.38%. Need to investigate if this is a timing, source, or calculation issue.
+
+## 🎯 IMMEDIATE PRIORITIES (Next Session)
+
+1. **DEBUG conventional line visibility** - This is the #1 blocker
+2. **Verify rate accuracy** - Check data sources and timing
+3. **Remove mock alerts** - Create real alert system based on client data
+4. **Real client matching** - Calculate actual clients near rate targets
+
+## 📁 Key Files to Know
+
+- `src/components/RateMonitor/HistoricalRateChart.tsx` - Premium chart component
+- `src/pages/RateMonitor.tsx` - Main rate monitor page  
+- `src/scripts/rate_import_script.ts` - Data import utility
+- `src/lib/rateService.ts` - Rate data management
+
+## 🛠 Technical Context
+
+**Environment**: 
+- Vite + React 18 + TypeScript
+- Supabase PostgreSQL backend
+- Tailwind CSS with glassmorphism design
+- Recharts for charting
+- Environment variables: `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+
+**Database access confirmed working** - All other chart lines display real data correctly.
+
+## 🎨 Design Direction
+
+Moving toward **premium glassmorphism SaaS design** - think high-end, $1000/month tool aesthetic with:
+- Backdrop blur effects
+- Subtle transparency
+- Premium color schemes  
+- Smooth animations
+- Professional data visualizations
+
+## 🔍 Debugging Notes
+
+**Console output confirms**:
+- Supabase query returns 845 records
+- Conventional data: 52 dates with valid rate values
+- Chart component receives data correctly
+- Line render function executes with correct parameters
+- No JavaScript errors
+
+**The mystery**: Why is the conventional line not visible when all data and rendering appears correct?
+
+---
+
+**Goal**: Fix the conventional line visibility issue, verify rate accuracy, then continue building the premium SaaS experience with real data throughout. The foundation is solid - we just need to resolve these final rendering issues.

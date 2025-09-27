@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { TrendingUp, TrendingDown, AlertCircle, RefreshCw } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { RateChart } from '../components/Dashboard/RateChart'
+import HistoricalRateChart from '../components/RateMonitor/HistoricalRateChart'
 import { RateService, RateData } from '../lib/rateService'
 
-interface RateData {
+interface RateDisplayData {
   loan_type: string
   rate: number
   change: number
@@ -18,14 +18,6 @@ export const RateMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [rateHistory, setRateHistory] = useState<any[]>([])
-
-  interface RateDisplayData {
-    loan_type: string
-    rate: number
-    change: number
-    trend: 'up' | 'down'
-    lastUpdate: string
-  }
 
   useEffect(() => {
     fetchRates()
@@ -53,22 +45,22 @@ export const RateMonitor: React.FC = () => {
       // If no real data, use mock data for development
       if (displayRates.length === 0) {
         setRates([
-          { loan_type: '30yr', rate: 7.25, change: -0.05, trend: 'down', lastUpdate: '2 min ago' },
-          { loan_type: 'fha', rate: 6.95, change: -0.12, trend: 'down', lastUpdate: '5 min ago' },
-          { loan_type: 'va', rate: 6.85, change: +0.02, trend: 'up', lastUpdate: '3 min ago' },
-          { loan_type: '15yr', rate: 6.75, change: -0.08, trend: 'down', lastUpdate: '1 min ago' }
+          { loan_type: 'conventional', rate: 6.825, change: -0.045, trend: 'down', lastUpdate: '2 min ago' },
+          { loan_type: 'fha', rate: 6.945, change: -0.032, trend: 'down', lastUpdate: '2 min ago' },
+          { loan_type: 'va', rate: 6.675, change: -0.028, trend: 'down', lastUpdate: '2 min ago' },
+          { loan_type: 'jumbo', rate: 7.125, change: -0.055, trend: 'down', lastUpdate: '2 min ago' }
         ])
       } else {
         setRates(displayRates)
       }
     } catch (error) {
       console.error('Error fetching rates:', error)
-      // Fallback to mock data
+      // Fallback to mock data with correct loan types
       setRates([
-        { loan_type: '30yr', rate: 7.25, change: -0.05, trend: 'down', lastUpdate: '2 min ago' },
-        { loan_type: 'fha', rate: 6.95, change: -0.12, trend: 'down', lastUpdate: '5 min ago' },
-        { loan_type: 'va', rate: 6.85, change: +0.02, trend: 'up', lastUpdate: '3 min ago' },
-        { loan_type: '15yr', rate: 6.75, change: -0.08, trend: 'down', lastUpdate: '1 min ago' }
+        { loan_type: 'conventional', rate: 6.825, change: -0.045, trend: 'down', lastUpdate: '2 min ago' },
+        { loan_type: 'fha', rate: 6.945, change: -0.032, trend: 'down', lastUpdate: '2 min ago' },
+        { loan_type: 'va', rate: 6.675, change: -0.028, trend: 'down', lastUpdate: '2 min ago' },
+        { loan_type: 'jumbo', rate: 7.125, change: -0.055, trend: 'down', lastUpdate: '2 min ago' }
       ])
     }
   }
@@ -81,6 +73,7 @@ export const RateMonitor: React.FC = () => {
       console.error('Error fetching rate history:', error)
     }
   }
+
   const refreshRates = async () => {
     setLoading(true)
     try {
@@ -96,18 +89,19 @@ export const RateMonitor: React.FC = () => {
 
   const getLoanTypeLabel = (type: string) => {
     switch (type) {
-      case '30yr': return '30-Year Fixed'
+      case 'conventional': return '30-Year Fixed'
       case 'fha': return 'FHA Loan'
       case 'va': return 'VA Loan'
-      case '15yr': return '15-Year Fixed'
+      case 'jumbo': return 'Jumbo Loan'
+      case '15yr_conventional': return '15-Year Fixed'
       default: return type
     }
   }
 
   const alerts = [
     { id: 1, message: 'Sarah Johnson\'s target rate of 6.95% reached for FHA loan', type: 'success', time: '5 min ago' },
-    { id: 2, message: '3 clients have target rates within 0.1% of current 30yr rate', type: 'warning', time: '12 min ago' },
-    { id: 3, message: 'VA rates dropped below 7% - 5 clients notified automatically', type: 'info', time: '1 hour ago' }
+    { id: 2, message: '8 clients have target rates within 0.1% of current rates', type: 'warning', time: '12 min ago' },
+    { id: 3, message: 'VA rates dropped below 6.7% - 12 clients notified automatically', type: 'info', time: '1 hour ago' }
   ]
 
   return (
@@ -175,10 +169,12 @@ export const RateMonitor: React.FC = () => {
         ))}
       </div>
 
-      {/* Rate Chart */}
-      <RateChart 
-        title="30-Year Fixed Rate Trends" 
-        data={rateHistory.map(h => ({ date: h.date, rate: h.rate }))}
+      {/* NEW: Premium Historical Rate Chart with Real Data */}
+      <HistoricalRateChart 
+        height={500}
+        variant="full"
+        title="Historical Rate Analytics"
+        className="shadow-lg"
       />
 
       {/* Rate Alerts */}

@@ -53,7 +53,7 @@ const LOAN_TYPE_CONFIG = {
     color: '#6B7280',
     gradient: 'from-gray-500 to-gray-600',
     name: '15yr Conventional',
-    enabled: false,
+    enabled: true, // Enable by default now that we have data
     icon: '⚡'
   }
 };
@@ -110,7 +110,18 @@ export default function HistoricalRateChart({
         .lte('rate_date', endDate.toISOString().split('T')[0])
         .order('rate_date', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        console.log('No data returned from Supabase query');
+        setChartData([]);
+        return;
+      }
+
+      console.log('✅ Loaded', data?.length, 'historical rate records');
 
       // Group data by date and loan type
       const groupedData: Record<string, RateData> = {};
@@ -132,8 +143,8 @@ export default function HistoricalRateChart({
       calculateStats(formattedData);
     } catch (error) {
       console.error('Error fetching historical rates:', error);
-      // Generate mock data for demo
-      generateMockData();
+      // Don't fall back to mock data - we have real data, so let's fix the real issue
+      setChartData([]);
     } finally {
       setLoading(false);
     }
@@ -440,7 +451,7 @@ export default function HistoricalRateChart({
                     type="monotone"
                     dataKey={loanType}
                     stroke={config.color}
-                    strokeWidth={3}
+                    strokeWidth={loanType === 'conventional' ? 4 : 3} // Thicker line for conventional
                     dot={false}
                     activeDot={{ 
                       r: 6, 
