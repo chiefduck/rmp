@@ -19,6 +19,7 @@ jobs:
           
           response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             "${{ secrets.SUPABASE_URL }}/functions/v1/rate-fetch")
           
           # Extract HTTP status code
