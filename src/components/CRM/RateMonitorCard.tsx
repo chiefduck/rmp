@@ -1,5 +1,6 @@
 import React from 'react'
 import { Phone, Mail, Edit, Trash2, TrendingUp } from 'lucide-react'
+import { TargetProgressBar } from './TargetProgressBar'
 
 interface Mortgage {
   id: string
@@ -164,6 +165,13 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
             </div>
           </div>
         </div>
+        {/* Target Progress */}
+<TargetProgressBar
+  currentRate={mortgage.current_rate}
+  targetRate={mortgage.target_rate}
+  marketRate={mortgage.market_rate || 6.5}
+  className="mb-4"
+/>
 
         {/* Contact Actions - Premium Style */}
         <div className="grid grid-cols-3 gap-2 mb-4">
