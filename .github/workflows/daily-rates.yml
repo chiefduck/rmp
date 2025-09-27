@@ -1,0 +1,72 @@
+name: Daily Rate Fetch
+
+on:
+  schedule:
+    # Run Monday-Friday at 4:00 PM EST (21:00 UTC)
+    - cron: '0 21 * * 1-5'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+jobs:
+  fetch-rates:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fetch Latest Mortgage Rates
+        run: |
+          echo "Fetching mortgage rates from MND..."
+          
+          response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/rate-fetch")
+          
+          # Extract HTTP status code
+          http_code=$(echo $response | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+          
+          # Extract response body
+          body=$(echo $response | sed -e 's/HTTPSTATUS\:.*//g')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          # Check if request was successful
+          if [ $http_code -eq 200 ]; then
+            echo "✅ Successfully fetched rates"
+            
+            # Parse and display rate summary
+            echo "$body" | jq -r '
+              if .success then
+                "📊 Rate Summary:",
+                "• Rates fetched: \(.rates_fetched)",
+                "• Date: \(.rate_date)",
+                "• Types: \(.data | map(.loan_type) | join(", "))"
+              else
+                "❌ Error: \(.error)"
+              end
+            '
+          else
+            echo "❌ Rate fetch failed with status $http_code"
+            echo "Response: $body"
+            exit 1
+          fi
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "🚨 Daily rate fetch failed!"
+          echo "Please check the Supabase function logs."
+          # Add notification logic here (Slack, email, etc.)
+
+  # Optional: Weekly summary job
+  weekly-summary:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 21 * * 5'  # Only run on Fridays
+    needs: fetch-rates
+    
+    steps:
+      - name: Generate Weekly Rate Summary
+        run: |
+          echo "📈 Weekly Rate Summary Generated"
+          echo "This could query your database for weekly trends"
+          # Add logic to generate and send weekly rate reports

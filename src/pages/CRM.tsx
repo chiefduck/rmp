@@ -13,6 +13,7 @@ import { MortgageDetailsModal } from '../components/CRM/MortgageDetailsModal'
 import { supabase, Client } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { deleteClient } from '../utils/clientUtils'
+import { RateService } from '../lib/rateService'
 
 // Mortgage interface
 interface Mortgage {
@@ -92,14 +93,46 @@ export const CRM: React.FC = () => {
         console.error('Error fetching mortgages:', mortgagesError)
         setClosedMortgages([])
       } else {
-        const transformedMortgages = mortgagesData?.map(mortgage => ({
-          ...mortgage,
-          client_name: `${mortgage.clients.first_name} ${mortgage.clients.last_name}`,
-          phone: mortgage.clients.phone,
-          email: mortgage.clients.email,
-          market_rate: 6.2, // Get from rate_history table later
-          savings_potential: calculateSavings(mortgage.current_rate, 6.2, mortgage.loan_amount)
-        })) || []
+        const transformedMortgages = await Promise.all(
+          mortgagesData?.map(async mortgage => {
+            // Get loan type from mortgage or client
+            const loanTypeField = mortgage.loan_type || mortgage.clients?.loan_type || '30yr'
+            
+            // Map all 5 main types
+            let loanType = 'conventional' // default
+            const typeText = loanTypeField.toLowerCase()
+            
+            if (typeText.includes('fha')) loanType = 'fha'
+            else if (typeText.includes('va')) loanType = 'va'
+            else if (typeText.includes('jumbo')) loanType = 'jumbo'
+            else if (typeText.includes('arm')) loanType = 'arm'
+            // else stays 'conventional'
+            
+            // Get term years
+            const termYears = mortgage.term_years || 30
+            
+            const marketRate = await RateService.getMarketRate(loanType, termYears)
+            
+            // Enhanced debug
+            console.log('=== MAPPING DEBUG ===')
+            console.log('Mortgage loan_type:', mortgage.loan_type)
+            console.log('Client loan_type:', mortgage.clients?.loan_type)
+            console.log('Final loanTypeField:', loanTypeField)
+            console.log('Mapped loanType:', loanType)
+            console.log('Term years:', termYears)
+            console.log('Market rate returned:', marketRate)
+            console.log('=====================')
+            
+            return {
+              ...mortgage,
+              client_name: `${mortgage.clients.first_name} ${mortgage.clients.last_name}`,
+              phone: mortgage.clients.phone,
+              email: mortgage.clients.email,
+              market_rate: marketRate,
+              savings_potential: calculateSavings(mortgage.current_rate, marketRate, mortgage.loan_amount)
+            }
+          }) || []
+        )
 
         setClosedMortgages(transformedMortgages)
       }
