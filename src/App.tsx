@@ -19,7 +19,6 @@ import { useState } from 'react'
 const AppContent: React.FC = () => {
   const { user } = useAuth()
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   return (
     <Router>
@@ -50,22 +49,14 @@ const AppContent: React.FC = () => {
           <Route path="ai-assistant" element={<AIAssistant />} />
           <Route path="calling" element={<AutoCalling />} />
           <Route path="settings" element={<Settings />} />
-        </Route>
-        
-        {/* Billing route (accessible without subscription) */}
-        <Route 
-          path="/billing" 
-          element={
-            <ProtectedRoute requiresSubscription={false}>
-              <AppLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Billing />} />
+          <Route path="billing" element={<Billing />} />
         </Route>
         
         {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Catch all route */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />

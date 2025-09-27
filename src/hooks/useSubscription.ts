@@ -1,4 +1,3 @@
-// src/hooks/useSubscription.ts - Fixed to handle existing records
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -38,14 +37,21 @@ export const useSubscription = () => {
 
     const fetchSubscription = async () => {
       try {
-        console.log('Fetching subscription for user:', user.id)
+        // First, get the customer ID from stripe_customers table
+        const { data: customerData, error: customerError } = await supabase
+          .from('stripe_customers')
+          .select('customer_id')
+          .eq('user_id', user.id)
+          .is('deleted_at', null)
+          .maybeSingle()
 
-        // First, get or create the customer record
-        const customerId = await ensureCustomerExists()
-        if (!customerId) {
-          console.error('Failed to create or retrieve customer')
-          setHasActiveSubscription(devMode)
-          setLoading(false)
+        if (customerError && customerError.code !== 'PGRST116') {
+          throw customerError
+        }
+
+        if (!customerData) {
+          // No customer record exists, create one for trial
+          await createTrialSubscription()
           return
         }
 
@@ -53,7 +59,7 @@ export const useSubscription = () => {
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('stripe_subscriptions')
           .select('*')
-          .eq('customer_id', customerId)
+          .eq('customer_id', customerData.customer_id)
           .is('deleted_at', null)
           .maybeSingle()
 
@@ -62,20 +68,12 @@ export const useSubscription = () => {
         }
 
         if (subscriptionData) {
-          console.log('Found existing subscription:', subscriptionData)
           setSubscription(subscriptionData)
           const isActive = ['trialing', 'active'].includes(subscriptionData.status)
           setHasActiveSubscription(isActive || devMode)
         } else {
-          console.log('No subscription found, creating trial')
           // No subscription exists, create trial
-          const trialSub = await createTrialSubscription(customerId)
-          if (trialSub) {
-            setSubscription(trialSub)
-            setHasActiveSubscription(true)
-          } else {
-            setHasActiveSubscription(devMode)
-          }
+          await createTrialSubscription()
         }
       } catch (error) {
         console.error('Error fetching subscription:', error)
@@ -86,76 +84,33 @@ export const useSubscription = () => {
       }
     }
 
-    const ensureCustomerExists = async (): Promise<string | null> => {
+    const createTrialSubscription = async () => {
       try {
-        // First check if customer already exists
-        const { data: existingCustomer, error: selectError } = await supabase
+        // Create a customer record if it doesn't exist
+        const { data: existingCustomer } = await supabase
           .from('stripe_customers')
           .select('customer_id')
           .eq('user_id', user.id)
           .is('deleted_at', null)
           .maybeSingle()
 
-        if (selectError && selectError.code !== 'PGRST116') {
-          throw selectError
-        }
+        let customerId = existingCustomer?.customer_id
 
-        if (existingCustomer) {
-          console.log('Found existing customer:', existingCustomer.customer_id)
-          return existingCustomer.customer_id
-        }
+        if (!customerId) {
+          // Generate a temporary customer ID for trial users
+          customerId = `trial_${user.id}`
+          
+          const { error: customerError } = await supabase
+            .from('stripe_customers')
+            .insert({
+              user_id: user.id,
+              customer_id: customerId
+            })
 
-        // Customer doesn't exist, create one
-        const customerId = `trial_${user.id}`
-        console.log('Creating new customer:', customerId)
-        
-        const { data: newCustomer, error: insertError } = await supabase
-          .from('stripe_customers')
-          .insert({
-            user_id: user.id,
-            customer_id: customerId
-          })
-          .select('customer_id')
-          .single()
-
-        if (insertError) {
-          // Handle the case where another process created the customer
-          if (insertError.code === '23505') {
-            console.log('Customer already exists (race condition), fetching existing')
-            const { data: existingCustomer } = await supabase
-              .from('stripe_customers')
-              .select('customer_id')
-              .eq('user_id', user.id)
-              .is('deleted_at', null)
-              .single()
-            
-            return existingCustomer?.customer_id || null
+          if (customerError) {
+            console.error('Error creating customer:', customerError)
+            return
           }
-          throw insertError
-        }
-
-        return newCustomer.customer_id
-      } catch (error) {
-        console.error('Error ensuring customer exists:', error)
-        return null
-      }
-    }
-
-    const createTrialSubscription = async (customerId: string): Promise<StripeSubscription | null> => {
-      try {
-        console.log('Creating trial subscription for customer:', customerId)
-        
-        // Check if subscription already exists first
-        const { data: existingSubscription } = await supabase
-          .from('stripe_subscriptions')
-          .select('*')
-          .eq('customer_id', customerId)
-          .is('deleted_at', null)
-          .maybeSingle()
-
-        if (existingSubscription) {
-          console.log('Subscription already exists:', existingSubscription)
-          return existingSubscription
         }
 
         // Create trial subscription
@@ -175,26 +130,14 @@ export const useSubscription = () => {
           .single()
 
         if (subscriptionError) {
-          // Handle the case where another process created the subscription
-          if (subscriptionError.code === '23505') {
-            console.log('Subscription already exists (race condition), fetching existing')
-            const { data: existingSubscription } = await supabase
-              .from('stripe_subscriptions')
-              .select('*')
-              .eq('customer_id', customerId)
-              .is('deleted_at', null)
-              .single()
-            
-            return existingSubscription || null
-          }
-          throw subscriptionError
+          console.error('Error creating trial subscription:', subscriptionError)
+          return
         }
 
-        console.log('Created trial subscription:', trialSubscription)
-        return trialSubscription
+        setSubscription(trialSubscription)
+        setHasActiveSubscription(true)
       } catch (error) {
         console.error('Error creating trial subscription:', error)
-        return null
       }
     }
 
@@ -210,8 +153,7 @@ export const useSubscription = () => {
           table: 'stripe_subscriptions'
         }, 
         (payload) => {
-          console.log('Subscription updated:', payload)
-          // Refetch subscription data
+          // Check if this update is for the current user's subscription
           fetchSubscription()
         }
       )

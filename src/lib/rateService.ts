@@ -59,8 +59,6 @@ export class RateService {
         }
       })
   
-      console.log('Fetched current rates:', Object.keys(ratesByType))
-      console.log('Rate dates:', Object.values(ratesByType).map(r => r.rate_date))
       return ratesByType
     } catch (error) {
       console.error('Error fetching current rates:', error)

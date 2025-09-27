@@ -36,13 +36,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Check if subscription is required and user doesn't have active subscription
-  if (requiresSubscription && !hasActiveSubscription && !devMode) {
+  // Don't redirect while subscription is still loading to prevent F5 redirect issues
+  if (requiresSubscription && !hasActiveSubscription && !devMode && !subLoading) {
     // Check if trial has expired
     const isTrialExpired = subscription?.status === 'trialing' && 
       subscription?.current_period_end && 
       new Date(subscription.current_period_end * 1000) < new Date()
 
-    if (isTrialExpired || !subscription) {
+    // Only redirect if we're not loading AND (trial expired OR no subscription exists)
+    if (isTrialExpired || (!subscription && !subLoading)) {
       return <Navigate to="/billing" replace />
     }
 

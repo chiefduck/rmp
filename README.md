@@ -844,3 +844,141 @@ Transform from a basic rate monitoring tool into a **premium $1000/month SaaS ex
 ---
 
 **Status**: MVP in active development | **Target**: Premium SaaS transformation | **Data**: 3,996+ historical records loaded
+
+# Rate Monitor Pro
+
+A premium SaaS platform for mortgage loan officers providing real-time rate monitoring, client management, and automated business intelligence.
+
+## 🚀 Features
+
+### ✅ Dashboard & Analytics
+- **Real-time rate monitoring** - Live MND (Mortgage News Daily) data integration
+- **Glassmorphism UI** - Modern, premium design with backdrop-blur effects
+- **Dynamic activity feed** - Real user actions and rate changes
+- **Interactive rate charts** - 30-day historical trends
+- **Client pipeline analytics** - Live stats and opportunities
+
+### ✅ Rate Monitoring System
+- **5 loan types** - 30yr Fixed, 15yr Fixed, FHA, VA, Jumbo
+- **Live rate updates** - Edge Function integration with MND
+- **Historical data** - Complete rate history and trends
+- **Rate alerts** - Target rate notifications (coming soon)
+
+### ✅ Client Management
+- **CRM integration** - Client pipeline tracking
+- **Stage management** - Lead to closing workflow
+- **Activity tracking** - Real-time client updates
+- **Portfolio analytics** - Pipeline value and conversion metrics
+
+### 🔄 In Development
+- **Billing system** - Subscription management and payments
+- **Settings panel** - User preferences and configurations
+- **Email notifications** - Resend integration for automated alerts
+- **Advanced notifications** - In-app and email alert system
+
+## 🛠️ Tech Stack
+
+- **Frontend:** React 18, TypeScript, Tailwind CSS
+- **Backend:** Supabase (PostgreSQL, Auth, Edge Functions)
+- **Rate Data:** Mortgage News Daily API integration
+- **Styling:** Glassmorphism design system
+- **Deployment:** Vercel (planned)
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── Dashboard/          # Dashboard-specific components
+│   ├── Layout/            # App layout and navigation
+│   └── ui/                # Reusable UI components
+├── contexts/              # React contexts (Auth, Theme)
+├── hooks/                 # Custom React hooks
+├── lib/                   # Utilities and services
+│   ├── rateService.ts     # Rate data management
+│   └── supabase.ts        # Database client
+└── pages/                 # Main application pages
+```
+
+## 🚦 Current Status
+
+**MVP Progress: ~75% Complete**
+
+### Working Features
+- ✅ Real-time rate dashboard with MND data
+- ✅ Client management and pipeline tracking
+- ✅ User authentication and subscription system
+- ✅ Glassmorphism UI design system
+- ✅ Historical rate charts and analytics
+
+### Next Sprint
+- 🔄 Billing page modernization
+- 🔄 Settings page complete rebuild
+- 🔄 Resend email integration
+- 🔄 Automated notification system
+
+## 🔧 Development Setup
+
+### Prerequisites
+- Node.js 18+
+- Supabase account
+- MND API access
+
+### Environment Variables
+```env
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_DEV_MODE=false
+```
+
+### Installation
+```bash
+npm install
+npm run dev
+```
+
+## 📊 Database Schema
+
+### Core Tables
+- `users` - User accounts and profiles
+- `clients` - Client/lead management
+- `rate_history` - Historical rate data from MND
+- `stripe_customers` - Subscription management
+- `stripe_subscriptions` - Payment tracking
+
+## 🎯 Business Model
+
+**Target Market:** Mortgage loan officers and small mortgage teams
+**Pricing:** $1000/month premium SaaS
+**Value Proposition:** Real-time rate intelligence + automated client management
+
+## 🔐 Security & Compliance
+
+- Row Level Security (RLS) enabled
+- User data isolation
+- Secure API endpoints
+- Subscription-based access control
+
+## 📈 Performance
+
+- Real-time rate updates via Edge Functions
+- Optimized database queries
+- Glassmorphism effects with performance considerations
+- Mobile-responsive design
+
+## 🚀 Deployment
+
+**Production Environment:**
+- Frontend: Vercel
+- Backend: Supabase
+- Edge Functions: Supabase Edge Runtime
+- Database: Supabase PostgreSQL
+
+## 📞 Support
+
+For technical issues or feature requests, contact the development team.
+
+---
+
+**Last Updated:** September 2025
+**Version:** 0.8.0 (MVP Preparation)
