@@ -1,13 +1,19 @@
 import { supabase } from './supabase'
 
 export interface RateData {
-  id?: string
-  rate_date: string
-  rate_type: string
-  rate_value: number
-  term_years: number
-  loan_type: string // Added loan_type field
-  created_at: string
+  id?: string;
+  rate_date: string;
+  rate_type: string;
+  rate_value: number;
+  term_years: number;
+  loan_type: string;
+  created_at: string;
+  change_1_day?: number;
+  change_1_week?: number;
+  change_1_month?: number;
+  change_1_year?: number;
+  range_52_week_low?: number;
+  range_52_week_high?: number;
 }
 
 export interface RateTrend {
@@ -34,17 +40,17 @@ export class RateService {
         .select('*')
         .order('rate_date', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(20) // Get more records to ensure we have latest for each type
-
+        .limit(50) // Get more records to ensure we have latest for each type
+  
       if (error) throw error
-
+  
       // Group by term_years + loan_type to get latest rate for each combination
       const ratesByType: Record<string, RateData> = {}
       
       data?.forEach(rate => {
-        // Create keys like "30yr_conventional", "30yr_fha", "15yr_conventional"
         const key = `${rate.term_years}yr_${rate.loan_type}`
         
+        // Only keep if this is newer than what we have
         if (!ratesByType[key] || 
             new Date(rate.rate_date) > new Date(ratesByType[key].rate_date) ||
             (rate.rate_date === ratesByType[key].rate_date && 
@@ -52,8 +58,9 @@ export class RateService {
           ratesByType[key] = rate
         }
       })
-
+  
       console.log('Fetched current rates:', Object.keys(ratesByType))
+      console.log('Rate dates:', Object.values(ratesByType).map(r => r.rate_date))
       return ratesByType
     } catch (error) {
       console.error('Error fetching current rates:', error)
@@ -120,20 +127,29 @@ export class RateService {
   }
 
   // Fetch fresh rates from the Edge Function and update database
+  // File: src/lib/rateService.ts - Update this function:
   static async fetchFreshRates(): Promise<boolean> {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      if (!supabaseUrl) {
-        console.error('Supabase URL not configured')
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !anonKey) {
+        console.error('Supabase configuration not found')
         return false
       }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/rate-fetch`)
+  
+      const response = await fetch(`${supabaseUrl}/functions/v1/rate-fetch`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'Content-Type': 'application/json',
+        }
+      })
       
       if (!response.ok) {
         throw new Error(`Rate fetch failed: ${response.status}`)
       }
-
+  
       const result = await response.json()
       
       if (result.success) {

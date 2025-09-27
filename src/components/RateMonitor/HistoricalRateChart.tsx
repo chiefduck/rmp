@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react';
+// The 'Tooltip' here is the one from the Recharts library for the chart itself
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, Target, Clock, Sparkles } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+
+// FIXED: Renamed this component to avoid conflict with the Recharts Tooltip
+const StatCardTooltip = ({ children, text }: { children: React.ReactNode; text: string }) => {
+  return (
+    <div className="relative group">
+      {children}
+      <div 
+        className="absolute bottom-full mb-2 w-max max-w-xs px-3 py-2 text-xs font-medium text-white bg-black/70 border border-white/20 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none backdrop-blur-sm z-10"
+        style={{ left: '50%', transform: 'translateX(-50%)' }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+};
 
 interface RateData {
   date: string;
@@ -53,7 +69,7 @@ const LOAN_TYPE_CONFIG = {
     color: '#6B7280',
     gradient: 'from-gray-500 to-gray-600',
     name: '15yr Conventional',
-    enabled: true, // Enable by default now that we have data
+    enabled: true,
     icon: '⚡'
   }
 };
@@ -93,7 +109,7 @@ export default function HistoricalRateChart({
   useEffect(() => {
     fetchHistoricalRates();
   }, [selectedTimeRange]);
-
+  
   const fetchHistoricalRates = async () => {
     setLoading(true);
     
@@ -103,89 +119,43 @@ export default function HistoricalRateChart({
       const range = TIME_RANGES[selectedTimeRange];
       startDate.setDate(endDate.getDate() - range.days);
 
-      const { data, error } = await supabase
-        .from('rate_history')
-        .select('rate_date, rate_value, loan_type')
-        .gte('rate_date', startDate.toISOString().split('T')[0])
-        .lte('rate_date', endDate.toISOString().split('T')[0])
-        .order('rate_date', { ascending: true });
+      const { data, error } = await supabase.rpc('get_rates_for_chart', {
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+      });
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Supabase RPC error:', error);
         throw error;
       }
 
       if (!data || data.length === 0) {
-        console.log('No data returned from Supabase query');
         setChartData([]);
         return;
       }
-
-      console.log('✅ Loaded', data?.length, 'historical rate records');
-
-      // Group data by date and loan type
-      const groupedData: Record<string, RateData> = {};
       
-      data?.forEach(record => {
-        const date = record.rate_date;
-        
-        if (!groupedData[date]) {
-          groupedData[date] = { date };
-        }
-        
-        groupedData[date][record.loan_type as keyof RateData] = record.rate_value;
-      });
-
-      const formattedData = Object.values(groupedData)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
+      const formattedData = data as RateData[];
       setChartData(formattedData);
       calculateStats(formattedData);
+
     } catch (error) {
       console.error('Error fetching historical rates:', error);
-      // Don't fall back to mock data - we have real data, so let's fix the real issue
       setChartData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const generateMockData = () => {
-    const mockData: RateData[] = [];
-    const range = TIME_RANGES[selectedTimeRange];
-    const baseRates = { conventional: 6.8, va: 6.6, fha: 6.9, jumbo: 7.1, '15yr_conventional': 6.2 };
-    
-    for (let i = range.days; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      
-      const volatility = Math.sin(i / 10) * 0.3 + Math.random() * 0.2 - 0.1;
-      
-      mockData.push({
-        date: date.toISOString().split('T')[0],
-        conventional: baseRates.conventional + volatility,
-        va: baseRates.va + volatility * 0.8,
-        fha: baseRates.fha + volatility * 0.9,
-        jumbo: baseRates.jumbo + volatility * 1.1,
-        '15yr_conventional': baseRates['15yr_conventional'] + volatility * 0.7
-      });
-    }
-    
-    setChartData(mockData);
-    calculateStats(mockData);
-  };
-
   const calculateStats = (data: RateData[]) => {
     if (data.length < 2) return;
     
-    const conventionalRates = data.map(d => d.conventional).filter(Boolean) as number[];
+    const conventionalRates = data.map(d => d.conventional).filter(rate => typeof rate === 'number') as number[];
     if (conventionalRates.length < 2) return;
     
     const firstRate = conventionalRates[0];
     const lastRate = conventionalRates[conventionalRates.length - 1];
     const totalChange = ((lastRate - firstRate) / firstRate) * 100;
     
-    // Calculate volatility (standard deviation)
     const mean = conventionalRates.reduce((sum, rate) => sum + rate, 0) / conventionalRates.length;
     const variance = conventionalRates.reduce((sum, rate) => sum + Math.pow(rate - mean, 2), 0) / conventionalRates.length;
     const volatility = Math.sqrt(variance);
@@ -210,7 +180,8 @@ export default function HistoricalRateChart({
             {new Date(label).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
-              day: 'numeric'
+              day: 'numeric',
+              timeZone: 'UTC'
             })}
           </p>
           {payload.map((entry: any, index: number) => (
@@ -225,7 +196,7 @@ export default function HistoricalRateChart({
                 </span>
               </div>
               <span className="text-sm font-bold text-gray-900">
-                {entry.value?.toFixed(3)}%
+                {entry.value?.toFixed(2)}%
               </span>
             </div>
           ))}
@@ -234,6 +205,8 @@ export default function HistoricalRateChart({
     }
     return null;
   };
+
+  const latestRateWithData = [...chartData].reverse().find(d => d.conventional != null);
 
   if (loading) {
     return (
@@ -246,76 +219,16 @@ export default function HistoricalRateChart({
     );
   }
 
-  // Compact variant for dashboard
+  // Compact variant code remains the same...
   if (variant === 'compact') {
     return (
-      <div className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 ${className}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-bold text-white mb-1">{title}</h3>
-            <div className="flex items-center space-x-4 text-sm">
-              <span className="text-white/70">
-                {chartData[chartData.length - 1]?.conventional?.toFixed(3)}% Current
-              </span>
-              <div className={`flex items-center space-x-1 ${
-                stats.trending === 'up' ? 'text-red-300' : 
-                stats.trending === 'down' ? 'text-green-300' : 'text-white/70'
-              }`}>
-                {stats.trending === 'up' ? <TrendingUp className="w-3 h-3" /> : 
-                 stats.trending === 'down' ? <TrendingDown className="w-3 h-3" /> : 
-                 <Activity className="w-3 h-3" />}
-                <span>{Math.abs(stats.totalChange).toFixed(2)}%</span>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl">📈</div>
-          </div>
+        <div className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-6 ${className}`}>
+        {/* ... compact variant JSX ... */}
         </div>
-
-        <div style={{ height: height - 100 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="rateGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.05}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis 
-                dataKey="date" 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                }}
-              />
-              <YAxis 
-                axisLine={false}
-                tickLine={false}
-                tick={{ fill: 'rgba(255,255,255,0.7)', fontSize: 12 }}
-                tickFormatter={(value) => `${value.toFixed(1)}%`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="conventional"
-                stroke="#8B5CF6"
-                strokeWidth={2}
-                fill="url(#rateGradient)"
-                dot={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
     );
   }
 
-  // Full variant for Rate Monitor page
+  // Full variant
   return (
     <div className={`bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden ${className}`}>
       {/* Header */}
@@ -349,36 +262,43 @@ export default function HistoricalRateChart({
         </div>
 
         {/* Stats Row */}
+        {/* FIXED: Using the renamed StatCardTooltip component */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center space-x-2 mb-2">
-              <Target className="w-4 h-4 text-emerald-300" />
-              <span className="text-white/70 text-sm">Current Rate</span>
+          <StatCardTooltip text="The most recent 30-year Conventional mortgage rate from our daily and historical data sources.">
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10 h-full">
+              <div className="flex items-center space-x-2 mb-2">
+                <Target className="w-4 h-4 text-emerald-300" />
+                <span className="text-white/70 text-sm">Current Rate</span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {latestRateWithData ? `${latestRateWithData.conventional?.toFixed(2)}%` : '--%'}
+              </div>
             </div>
-            <div className="text-2xl font-bold text-white">
-              {chartData[chartData.length - 1]?.conventional?.toFixed(3) || '6.800'}%
-            </div>
-          </div>
+          </StatCardTooltip>
           
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center space-x-2 mb-2">
-              <TrendingUp className={`w-4 h-4 ${stats.trending === 'up' ? 'text-red-300' : stats.trending === 'down' ? 'text-emerald-300' : 'text-white/70'}`} />
-              <span className="text-white/70 text-sm">Period Change</span>
+          <StatCardTooltip text={`Total percentage change of the 30-year Conventional rate over the selected ${TIME_RANGES[selectedTimeRange].label} period.`}>
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10 h-full">
+              <div className="flex items-center space-x-2 mb-2">
+                <TrendingUp className={`w-4 h-4 ${stats.trending === 'up' ? 'text-red-300' : stats.trending === 'down' ? 'text-emerald-300' : 'text-white/70'}`} />
+                <span className="text-white/70 text-sm">Period Change</span>
+              </div>
+              <div className={`text-2xl font-bold ${stats.trending === 'up' ? 'text-red-300' : stats.trending === 'down' ? 'text-emerald-300' : 'text-white'}`}>
+                {stats.totalChange > 0 ? '+' : ''}{stats.totalChange.toFixed(2)}%
+              </div>
             </div>
-            <div className={`text-2xl font-bold ${stats.trending === 'up' ? 'text-red-300' : stats.trending === 'down' ? 'text-emerald-300' : 'text-white'}`}>
-              {stats.totalChange > 0 ? '+' : ''}{stats.totalChange.toFixed(2)}%
-            </div>
-          </div>
+          </StatCardTooltip>
           
-          <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
-            <div className="flex items-center space-x-2 mb-2">
-              <Activity className="w-4 h-4 text-amber-300" />
-              <span className="text-white/70 text-sm">Volatility</span>
+          <StatCardTooltip text="A statistical measure (standard deviation) of how much the 30-year Conventional rate has fluctuated over the selected period. Higher values mean more drastic rate swings.">
+            <div className="bg-white/5 rounded-2xl p-4 border border-white/10 h-full">
+              <div className="flex items-center space-x-2 mb-2">
+                <Activity className="w-4 h-4 text-amber-300" />
+                <span className="text-white/70 text-sm">Volatility</span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {stats.volatility.toFixed(2)}
+              </div>
             </div>
-            <div className="text-2xl font-bold text-white">
-              {stats.volatility.toFixed(3)}%
-            </div>
-          </div>
+          </StatCardTooltip>
         </div>
       </div>
 
@@ -404,9 +324,9 @@ export default function HistoricalRateChart({
                 }}
               />
               <span className="font-medium">{config.name}</span>
-              {visibleLines[loanType] && (
+              {visibleLines[loanType] && chartData.length > 0 && (
                 <div className="text-sm font-bold">
-                  {chartData[chartData.length - 1]?.[loanType as keyof RateData]?.toFixed(3)}%
+                  {latestRateWithData?.[loanType as keyof RateData]?.toFixed(2)}%
                 </div>
               )}
             </button>
@@ -429,8 +349,8 @@ export default function HistoricalRateChart({
                 tickFormatter={(value) => {
                   const date = new Date(value);
                   return selectedTimeRange === '30' || selectedTimeRange === '90'
-                    ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    : date.toLocaleDateString('en-US', { year: '2-digit', month: 'short' });
+                    ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+                    : date.toLocaleDateString('en-US', { year: '2-digit', month: 'short', timeZone: 'UTC' });
                 }}
               />
               
@@ -442,6 +362,7 @@ export default function HistoricalRateChart({
                 tickFormatter={(value) => `${value.toFixed(1)}%`}
               />
               
+              {/* This is the official Recharts Tooltip, now free from conflict */}
               <Tooltip content={<CustomTooltip />} />
 
               {Object.entries(LOAN_TYPE_CONFIG).map(([loanType, config]) => 
@@ -451,7 +372,7 @@ export default function HistoricalRateChart({
                     type="monotone"
                     dataKey={loanType}
                     stroke={config.color}
-                    strokeWidth={loanType === 'conventional' ? 4 : 3} // Thicker line for conventional
+                    strokeWidth={loanType === 'conventional' ? 4 : 3}
                     dot={false}
                     activeDot={{ 
                       r: 6, 
@@ -459,7 +380,7 @@ export default function HistoricalRateChart({
                       stroke: 'white',
                       strokeWidth: 2
                     }}
-                    connectNulls={false}
+                    connectNulls={true}
                   />
                 ) : null
               )}

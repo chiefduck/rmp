@@ -675,97 +675,172 @@ curl -H "Authorization: Bearer YOUR_KEY" YOUR_FUNCTION_URL
 
 **Target MVP Completion:** Next development phase focusing on historical charts, alerts, and notifications before final code audit and launch preparation.
 
-# Development Session Continuation Prompt
+# Rate Monitor Pro - Premium Mortgage Broker CRM
 
-I'm working on a **premium mortgage broker CRM** called "Rate Monitor Pro" built with **Vite + React + TypeScript + Supabase**. We're transforming it from a basic tool into a **$1000/month premium SaaS** with glassmorphism design and real data throughout.
+A premium glassmorphism-designed mortgage broker CRM with real-time rate monitoring, historical analytics, and intelligent client management. Built with Vite + React + TypeScript + Supabase.
 
-## ✅ What We Accomplished
+## 🚀 Features Completed
 
-**Successfully imported 3,996 historical rate records** into Supabase:
-- 30yr Conventional: 261 weekly records (Freddie Mac)
-- 30yr VA/FHA/Jumbo: 1,245 daily records each (Optimal Blue via FRED)
-- 15yr Conventional: 261 weekly records (Freddie Mac)
-- Date range: September 2020 - September 2025
+### ✅ Historical Rate Data Integration
+- **3,996+ historical records** imported from FRED (Federal Reserve Economic Data)
+- **5 years of data** (September 2020 - September 2025) covering:
+  - 30yr Conventional (261 weekly records from Freddie Mac)
+  - 30yr VA (1,245 daily records from Optimal Blue)
+  - 30yr FHA (1,245 daily records from Optimal Blue)  
+  - 30yr Jumbo (1,245 daily records from Optimal Blue)
+  - 15yr Conventional (261 weekly records from Freddie Mac)
 
-**Built premium HistoricalRateChart component** (`src/components/RateMonitor/HistoricalRateChart.tsx`):
-- Interactive loan type toggles with emoji icons
-- Time range selector (30D, 90D, 1Y, 5Y)
-- Real Supabase data integration
-- Glassmorphism styling for premium feel
-- Recharts library for visualizations
+### ✅ Premium Historical Rate Chart
+- **Interactive toggles** for each loan type with emoji icons
+- **Time range selection** (30D, 90D, 1Y, 5Y views)
+- **Real-time data integration** from Supabase database
+- **Professional tooltips** with precise rate data
+- **Glassmorphism design** for premium SaaS appearance
+- **Responsive layout** works on all screen sizes
 
-**Database schema** properly mapped:
-```sql
-rate_history table:
-- rate_value (numeric) - actual rate percentage  
-- rate_date (date) - date of rate
-- loan_type (varchar) - conventional, va, fha, jumbo, 15yr_conventional
-- term_years (integer) - 15 or 30
-- rate_type (text) - market/promotional
+### ✅ Database Architecture
+- **Optimized schema** with proper column mapping:
+  - `rate_value` (numeric) - The actual rate percentage
+  - `rate_date` (date) - Date of the rate
+  - `loan_type` (varchar) - Type of loan (conventional, va, fha, jumbo, 15yr_conventional)
+  - `term_years` (integer) - Loan term (15 or 30 years)
+  - `rate_type` (text) - Type of rate (market, promotional, etc.)
+
+### ✅ Data Import System
+- **Automated CSV import script** (`src/scripts/rate_import_script.ts`)
+- **FRED data parsing** with support for multiple CSV formats
+- **Bulk insert optimization** with chunked processing
+- **Environment variable configuration** for different setups
+
+### ✅ Real-Time Rate Integration
+- **Live rate fetching** from existing rate monitoring system
+- **Current rate cards** with trend indicators
+- **Rate comparison tables** with client matching counts
+- **Development tools** for testing and debugging
+
+## 🔧 Current Development Status
+
+### 🐛 Known Issues
+1. **Conventional line visibility** - Data loads correctly (52 points confirmed) but line not visible on chart
+2. **Rate accuracy variance** - Small discrepancy between our data (6.30%) and MND source (6.38%)
+
+### 🚧 In Progress
+- **Premium glassmorphism UI** implementation
+- **Real alert system** (currently uses mock alerts)
+- **Dynamic client matching** (currently shows random counts)
+
+## 🛠 Technology Stack
+
+- **Frontend**: Vite + React 18 + TypeScript
+- **Styling**: Tailwind CSS with glassmorphism design
+- **Charts**: Recharts library for interactive visualizations
+- **Backend**: Supabase (PostgreSQL + Edge Functions)
+- **Icons**: Lucide React
+- **Environment**: Node.js with TypeScript execution via tsx
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   ├── CRM/                     # CRM-specific components
+│   │   ├── RateMonitorCard.tsx  # Rate cards for CRM tab
+│   │   └── TargetProgressBar.tsx
+│   ├── RateMonitor/             # Rate Monitor tab components
+│   │   └── HistoricalRateChart.tsx  # Premium historical chart
+│   ├── Dashboard/               # Dashboard components
+│   └── ui/                      # Reusable UI components
+├── lib/
+│   ├── supabase.ts             # Supabase client configuration
+│   └── rateService.ts          # Rate data management
+├── pages/
+│   ├── Dashboard.tsx           # Main dashboard
+│   ├── RateMonitor.tsx         # Rate monitoring page
+│   └── CRM.tsx                 # Client management
+├── scripts/
+│   └── rate_import_script.ts   # Historical data import utility
+└── data/                       # CSV files for import
+    ├── MORTGAGE30US.csv        # 30yr Conventional (Freddie Mac)
+    ├── OBMMIVA30YF.csv         # 30yr VA (Optimal Blue)
+    ├── OBMMIFHA30YF.csv        # 30yr FHA (Optimal Blue)
+    └── OBMMIJUMBO30YF.csv      # 30yr Jumbo (Optimal Blue)
 ```
 
-## 🐛 CRITICAL ISSUES TO FIX
+## 🗃 Database Schema
 
-### Issue #1: Conventional Line Invisible on Chart
-**Problem**: 30yr conventional data loads correctly (confirmed in console: "52 data points, visible: true, sampleData: 6.12") but the line doesn't appear on the chart. Other lines (VA, FHA, Jumbo, 15yr) display perfectly.
+### rate_history Table
+```sql
+CREATE TABLE rate_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  rate_value NUMERIC NOT NULL,
+  rate_date DATE NOT NULL,
+  loan_type VARCHAR NOT NULL,
+  term_years INTEGER,
+  rate_type TEXT DEFAULT 'market',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
 
-**What we tried**:
-- Changed color from purple (#8B5CF6) to red (#DC2626)
-- Increased stroke width to 4px
-- Confirmed data structure is correct
-- Verified 52 conventional records exist in correct date range
-- Console shows line is being rendered
+## ⚙️ Setup & Installation
 
-**Current status**: Data is there, line renders in code, but not visible in UI. Needs root cause analysis.
+### Prerequisites
+- Node.js 18+
+- Supabase project with database
+- Environment variables configured
 
-### Issue #2: Rate Accuracy Discrepancy  
-**Problem**: Our 30yr conventional rate shows 6.30% but Mortgage News Daily shows 6.38%. Need to investigate if this is a timing, source, or calculation issue.
+### Environment Variables
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-## 🎯 IMMEDIATE PRIORITIES (Next Session)
+### Installation
+```bash
+npm install
+npm install recharts dotenv tsx  # Additional dependencies
+```
 
-1. **DEBUG conventional line visibility** - This is the #1 blocker
-2. **Verify rate accuracy** - Check data sources and timing
-3. **Remove mock alerts** - Create real alert system based on client data
-4. **Real client matching** - Calculate actual clients near rate targets
+### Import Historical Data
+```bash
+# Place CSV files in /data folder
+npx tsx src/scripts/rate_import_script.ts
+```
 
-## 📁 Key Files to Know
+### Development
+```bash
+npm run dev
+```
 
-- `src/components/RateMonitor/HistoricalRateChart.tsx` - Premium chart component
-- `src/pages/RateMonitor.tsx` - Main rate monitor page  
-- `src/scripts/rate_import_script.ts` - Data import utility
-- `src/lib/rateService.ts` - Rate data management
+## 📊 Data Sources
 
-## 🛠 Technical Context
+- **Freddie Mac PMMS** - Weekly 30yr and 15yr conventional rates
+- **Optimal Blue** - Daily VA, FHA, and Jumbo rates via FRED
+- **FRED (Federal Reserve Economic Data)** - All historical data sourced from St. Louis Fed
 
-**Environment**: 
-- Vite + React 18 + TypeScript
-- Supabase PostgreSQL backend
-- Tailwind CSS with glassmorphism design
-- Recharts for charting
-- Environment variables: `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+## 🎯 Next Development Phase
 
-**Database access confirmed working** - All other chart lines display real data correctly.
+### Immediate Priorities
+1. **Fix conventional line chart visibility**
+2. **Resolve rate accuracy discrepancies**
+3. **Implement real alert system based on client data**
+4. **Add dynamic client matching calculations**
 
-## 🎨 Design Direction
+### Upcoming Features
+1. **Complete glassmorphism UI transformation**
+2. **Real-time rate change calculations (24h/7d)**
+3. **Market volatility analysis from historical data**
+4. **Email/SMS notification system**
+5. **Advanced trend analysis and predictions**
 
-Moving toward **premium glassmorphism SaaS design** - think high-end, $1000/month tool aesthetic with:
-- Backdrop blur effects
-- Subtle transparency
-- Premium color schemes  
-- Smooth animations
-- Professional data visualizations
+## 🏆 Goals
 
-## 🔍 Debugging Notes
-
-**Console output confirms**:
-- Supabase query returns 845 records
-- Conventional data: 52 dates with valid rate values
-- Chart component receives data correctly
-- Line render function executes with correct parameters
-- No JavaScript errors
-
-**The mystery**: Why is the conventional line not visible when all data and rendering appears correct?
+Transform from a basic rate monitoring tool into a **premium $1000/month SaaS experience** with:
+- Professional glassmorphism design throughout
+- Real-time, accurate data (no mock data)
+- Intelligent automation and insights
+- Advanced analytics and forecasting
 
 ---
 
-**Goal**: Fix the conventional line visibility issue, verify rate accuracy, then continue building the premium SaaS experience with real data throughout. The foundation is solid - we just need to resolve these final rendering issues.
+**Status**: MVP in active development | **Target**: Premium SaaS transformation | **Data**: 3,996+ historical records loaded
