@@ -495,3 +495,182 @@ For technical issues or feature requests, please [contact information or issue t
 
 **Current Status**: Phase 2 MVP Complete - Production Ready
 **Next Phase**: Rate Scraping & Automation Engine
+
+# Mortgage Broker CRM & Rate Monitoring System
+
+A comprehensive CRM solution for mortgage brokers with automated rate monitoring, client pipeline management, and real-time refinancing opportunity detection.
+
+## 🎯 Current Status: Pre-MVP Development
+
+### ✅ Completed Features
+
+**Core CRM Functionality:**
+- Client pipeline management with stage tracking
+- Mortgage record management and closing workflow
+- Client notes and activity logging
+- Contact management with communication tracking
+
+**Live Rate Monitoring:**
+- Automated daily rate scraping from Mortgage News Daily
+- Support for 6 loan types: 30yr/15yr conventional, FHA, VA, jumbo, ARM
+- Loan-type specific market comparisons (FHA vs FHA, VA vs VA, etc.)
+- Real-time opportunity calculations using proper amortization formulas
+- Visual progress bars showing client proximity to target rates
+
+**Rate Infrastructure:**
+- Supabase Edge Function for rate scraping (Deno/TypeScript)
+- GitHub Actions automation (weekdays 4 PM EST)
+- Historical rate storage with trend tracking
+- Dynamic market rate integration replacing hardcoded values
+
+### 🚧 In Development (MVP Completion)
+
+**Remaining Core Features:**
+1. **Historical rate charts** - Trend visualization for each loan type
+2. **Rate alerts system** - Automated client target monitoring
+3. **Resend email integration** - Professional notification infrastructure
+4. **Client notifications** - Welcome, auth, and opportunity alerts
+5. **Trend analysis dashboard** - Market direction indicators
+
+**Code Quality Phase:**
+- Refactor 600+ line files into smaller components
+- Remove debug logs and optimize structure
+- Final testing and MVP validation
+
+## 🏗️ Technical Architecture
+
+**Frontend:**
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- Supabase client for data management
+- Lucide React for icons
+
+**Backend:**
+- Supabase PostgreSQL database
+- Edge Functions for rate scraping
+- Row Level Security (RLS) for data protection
+- Real-time subscriptions for live updates
+
+**Rate Scraping:**
+- Deno-based Edge Function
+- Mortgage News Daily integration
+- 6 loan types with daily updates
+- Error handling and retry logic
+
+**Automation:**
+- GitHub Actions for scheduled execution
+- Secure API key management
+- Automated error monitoring and reporting
+
+## 📊 Database Schema
+
+**Core Tables:**
+- `clients` - Client information and pipeline stages
+- `mortgages` - Closed loan records for rate monitoring  
+- `rate_history` - Historical market rates by loan type
+- `client_notes` - Communication logs and activity tracking
+
+**Rate Data Structure:**
+```sql
+rate_history (
+  id, rate_date, rate_type, rate_value, 
+  term_years, loan_type, created_at
+)
+```
+
+**Supported Loan Types:**
+- `conventional` (30yr: 6.38%, 15yr: 5.90%)
+- `fha` (30yr: 6.09%)
+- `va` (30yr: 6.10%) 
+- `jumbo` (30yr: 6.29%)
+- `arm` (7/6 SOFR: 5.82%)
+
+## 🔄 Rate Monitoring Workflow
+
+1. **Daily Scraping:** GitHub Actions triggers rate fetch weekdays at 4 PM EST
+2. **Data Storage:** Latest rates stored in `rate_history` table
+3. **Opportunity Detection:** System compares client rates to current market
+4. **Visual Indicators:** Progress bars show target rate proximity
+5. **Savings Calculations:** Real-time P&I payment comparisons
+
+## 💡 Key Business Features
+
+**Intelligent Opportunity Scoring:**
+- Loan-type specific comparisons (no more generic rates)
+- Monthly savings calculations with proper amortization
+- Opportunity levels: Excellent (>$300/mo), Good (>$150/mo), Monitor (>$50/mo)
+- Visual progress tracking toward client targets
+
+**Pipeline Management:**
+- Stage tracking: prospect → qualified → application → closed
+- Automated note generation for stage changes
+- Client deletion with cascade protection
+- Comprehensive contact management
+
+**Rate Monitoring:**
+- Real-time market rate display
+- Historical trend tracking (building over time)
+- Client-specific target monitoring
+- Refinancing opportunity alerts (coming soon)
+
+## 🚀 Deployment
+
+**Edge Function Deployment:**
+```bash
+supabase functions deploy rate-fetch
+```
+
+**GitHub Actions Setup:**
+- Repository secrets: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+- Workflow file: `.github/workflows/daily-rates.yml`
+- Automated execution Monday-Friday
+
+**Environment Variables:**
+```env
+VITE_SUPABASE_URL=your-project-url
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+## 📈 Post-MVP Roadmap
+
+**Advanced Features:**
+- AI chatbot for client communication
+- AI voice calling for automated outreach
+- Advanced analytics and reporting
+- Multi-lender rate comparisons
+- Mobile application
+
+**Integrations:**
+- CRM system integrations
+- Marketing automation
+- Document management
+- E-signature workflows
+
+## 🛠️ Development Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Deploy edge functions
+supabase functions deploy
+
+# Run rate scraper manually
+curl -H "Authorization: Bearer YOUR_KEY" YOUR_FUNCTION_URL
+```
+
+## 📋 Current MVP Completion Status
+
+- [x] Core CRM functionality
+- [x] Live rate scraping infrastructure  
+- [x] Loan-type specific calculations
+- [x] Visual progress indicators
+- [ ] Historical rate charts
+- [ ] Rate alerts system
+- [ ] Email notification infrastructure
+- [ ] Code refactoring and optimization
+
+**Target MVP Completion:** Next development phase focusing on historical charts, alerts, and notifications before final code audit and launch preparation.
