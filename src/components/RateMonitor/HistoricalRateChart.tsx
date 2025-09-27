@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 // The 'Tooltip' here is the one from the Recharts library for the chart itself
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, Target, Clock, Sparkles } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { RateService } from '../../lib/rateService';
 
 // FIXED: Renamed this component to avoid conflict with the Recharts Tooltip
 const StatCardTooltip = ({ children, text }: { children: React.ReactNode; text: string }) => {
@@ -114,30 +114,63 @@ export default function HistoricalRateChart({
     setLoading(true);
     
     try {
-      const endDate = new Date();
-      const startDate = new Date();
       const range = TIME_RANGES[selectedTimeRange];
-      startDate.setDate(endDate.getDate() - range.days);
-
-      const { data, error } = await supabase.rpc('get_rates_for_chart', {
-        start_date: startDate.toISOString().split('T')[0],
-        end_date: endDate.toISOString().split('T')[0]
-      });
-
-      if (error) {
-        console.error('Supabase RPC error:', error);
-        throw error;
-      }
-
-      if (!data || data.length === 0) {
-        setChartData([]);
-        return;
-      }
       
-      const formattedData = data as RateData[];
-      setChartData(formattedData);
-      calculateStats(formattedData);
+      // Use the same RateService methods as the rate cards
+      const [
+        conventionalHistory,
+        fhaHistory,
+        vaHistory,
+        jumboHistory,
+        fifteenYearHistory
+      ] = await Promise.all([
+        RateService.getRateHistory(30, 'conventional', range.days),
+        RateService.getRateHistory(30, 'fha', range.days),
+        RateService.getRateHistory(30, 'va', range.days),
+        RateService.getRateHistory(30, 'jumbo', range.days),
+        RateService.getRateHistory(15, '15yr_conventional', range.days)
+      ]);
+  
+      // Transform the data into the format the chart expects
+      const dateMap = new Map<string, any>();
+  
+      // Helper to add rate data to the date map
+      const addRateData = (history: any[], loanType: string) => {
+        history.forEach(item => {
+          const dateKey = item.date;
+          if (!dateMap.has(dateKey)) {
+            dateMap.set(dateKey, { date: dateKey });
+          }
+          const entry = dateMap.get(dateKey);
+          entry[loanType] = item.rate;
+        });
+      };
+  
+      // Add all loan types to the chart data
+      addRateData(conventionalHistory, 'conventional');
+      addRateData(fhaHistory, 'fha');
+      addRateData(vaHistory, 'va');
+      addRateData(jumboHistory, 'jumbo');
+      addRateData(fifteenYearHistory, '15yr_conventional');
+  
+      // Convert map to sorted array
+      const chartData = Array.from(dateMap.values())
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+      console.log(`Chart data: ${chartData.length} points, includes 15yr:`, 
+      chartData.some(d => d['15yr_conventional'] !== undefined));
+
+      // ADD THESE DEBUG LINES HERE:
+      console.log('15yr data in chart:', chartData.filter(d => d['15yr_conventional'] !== undefined));
+      console.log('Latest 15yr rate:', chartData[chartData.length - 1]?.['15yr_conventional']);
+      console.log('Latest chart entry:', chartData[chartData.length - 1]);
+      console.log('15yr history result:', fifteenYearHistory);
+      
+      console.log('15yr history length:', fifteenYearHistory.length);
+
+      setChartData(chartData);
+      calculateStats(chartData);
+  
     } catch (error) {
       console.error('Error fetching historical rates:', error);
       setChartData([]);

@@ -13,7 +13,14 @@ interface RateDisplayData {
   change: number
   trend: 'up' | 'down'
   lastUpdate: string
-  clientsMatching?: number
+  // Add the MND data fields
+  range_52_week_low?: number
+  range_52_week_high?: number
+  change_1_week?: number
+  change_1_month?: number
+  change_1_year?: number
+  // Remove this since we removed the clients column
+  // clientsMatching?: number
 }
 
 export const RateMonitor: React.FC = () => {
@@ -36,76 +43,58 @@ export const RateMonitor: React.FC = () => {
   
       console.log('Raw current rates:', currentRates)
   
-      // Define exactly which rates we want to display and their proper mapping
+      // Define exactly which rates we want to display
       const rateMapping = {
         '30yr_conventional': { loan_type: 'conventional', label: '30-Year Fixed' },
-        '15yr_conventional': { loan_type: '15yr_conventional', label: '15-Year Fixed' },
         '30yr_fha': { loan_type: 'fha', label: 'FHA Loan' },
         '30yr_va': { loan_type: 'va', label: 'VA Loan' },
         '30yr_jumbo': { loan_type: 'jumbo', label: 'Jumbo Loan' }
-        // Exclude ARM for now
       }
   
-      // Only process the rates we want to display
+      // Process existing rates
       Object.entries(rateMapping).forEach(([key, config]) => {
         const rateData = currentRates[key]
         if (rateData) {
           displayRates.push({
             loan_type: config.loan_type,
             rate: rateData.rate_value,
-            change: 0, // We'll calculate this below
-            trend: 'down', // We'll calculate this below
-            lastUpdate: new Date(rateData.rate_date).toLocaleDateString()
+            change: rateData.change_1_day || 0,
+            trend: (rateData.change_1_day || 0) > 0 ? 'up' : 'down',
+            lastUpdate: new Date(rateData.rate_date).toLocaleDateString(),
+            range_52_week_low: rateData.range_52_week_low,
+            range_52_week_high: rateData.range_52_week_high,
+            change_1_week: rateData.change_1_week,
+            change_1_month: rateData.change_1_month,
+            change_1_year: rateData.change_1_year
           })
         }
       })
   
-      // Rest of your existing code for client matching and rate changes...
-
-      // Calculate real client matching counts
-      for (const rate of displayRates) {
-        try {
-          const { count } = await supabase
-            .from('clients')
-            .select('*', { count: 'exact', head: true })
-            .eq('loan_type', rate.loan_type === 'conventional' ? '30yr' : rate.loan_type)
-            .gte('target_rate', rate.rate - 0.1) // Within 0.1% of current rate
-            .lte('target_rate', rate.rate + 0.1)
-
-          rate.clientsMatching = count || 0
-        } catch (error) {
-          console.error(`Error counting clients for ${rate.loan_type}:`, error)
-          rate.clientsMatching = 0
+      // Always add 15yr rate - get latest available
+      try {
+        const latest15yr = await RateService.getCurrentRate(15, '15yr_conventional')
+        if (latest15yr) {
+          displayRates.push({
+            loan_type: '15yr',
+            rate: latest15yr.rate_value,
+            change: latest15yr.change_1_day || 0,
+            trend: (latest15yr.change_1_day || 0) > 0 ? 'up' : 'down',
+            lastUpdate: new Date(latest15yr.rate_date).toLocaleDateString(),
+            range_52_week_low: latest15yr.range_52_week_low,
+            range_52_week_high: latest15yr.range_52_week_high,
+            change_1_week: latest15yr.change_1_week,
+            change_1_month: latest15yr.change_1_month,
+            change_1_year: latest15yr.change_1_year
+          })
         }
+      } catch (error) {
+        console.error('Error fetching 15yr rate:', error)
       }
-
-      // Calculate real rate changes (24h) for each loan type
-      for (const rate of displayRates) {
-        try {
-          const termYears = rate.loan_type === '15yr_conventional' ? 15 : 30
-          const loanType = rate.loan_type.replace('15yr_', '')
-          
-          const history = await RateService.getRateHistory(termYears, loanType, 2) // Get last 2 days
-          if (history.length >= 2) {
-            const change = history[history.length - 1].rate - history[history.length - 2].rate
-            rate.change = change
-            rate.trend = change > 0 ? 'up' : 'down'
-          }
-        } catch (error) {
-          console.error(`Error calculating change for ${rate.loan_type}:`, error)
-        }
-      }
-
-      if (displayRates.length > 0) {
-        console.log('Using real rate data:', displayRates)
-        setRates(displayRates)
-      } else {
-        console.error('No rate data available - check database and rate import')
-        setRates([]) // Empty array instead of mock data
-      }
+  
+      setRates(displayRates)
     } catch (error) {
       console.error('Error fetching rates:', error)
-      setRates([]) // Empty array on error
+      setRates([])
     }
   }
 
@@ -181,12 +170,34 @@ export const RateMonitor: React.FC = () => {
   const refreshRates = async () => {
     setLoading(true)
     try {
+      console.log('Fetching fresh rates from MND...')
+      
+      // First, try to get fresh data from MND
+      const freshDataSuccess = await RateService.fetchFreshRates()
+      
+      if (freshDataSuccess) {
+        console.log('✅ Successfully fetched fresh MND data')
+        // Wait a moment for data to be stored
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      } else {
+        console.log('⚠️ Failed to fetch fresh data, using existing database data')
+      }
+      
+      // Now refresh the UI with latest data (fresh or existing)
       await fetchRates()
       await fetchRateHistory()
       await fetchRealAlerts()
       setLastRefresh(new Date())
+      
+      if (freshDataSuccess) {
+        alert('✅ Rates updated with fresh data!')
+      } else {
+        alert('⚠️ Refreshed with existing data. Fresh data fetch failed')
+      }
+      
     } catch (error) {
       console.error('Error refreshing rates:', error)
+      alert('❌ Failed to refresh rates.')
     } finally {
       setLoading(false)
     }
@@ -314,58 +325,90 @@ export const RateMonitor: React.FC = () => {
       </Card>
 
       
-      {/* Rate Comparison Table - MND Format */}
-      <Card>
-      <CardHeader>
-        <CardTitle>Rate Comparison - Live Market Data</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
+      // Rate Comparison Table - Complete MND Format (No Clients Column)
+<Card>
+  <CardHeader>
+    <CardTitle>Rate Comparison - Live Market Data</CardTitle>
+    <p className="text-sm text-gray-600 dark:text-gray-400">
+      Real-time data from Mortgage News Daily - updated daily
+    </p>
+  </CardHeader>
+  <CardContent>
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700">
             <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Loan Type</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Current Rate</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 Day</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 Week</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 Month</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">52-Week Range</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Clients</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Current</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 day</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 week</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 month</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 year</th>
+            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">52 Week Range</th>
           </tr>
-          </thead>
-          <tbody>
-          {rates.map((rate) => (
-            <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
-            <td className="py-4 font-medium text-gray-900 dark:text-gray-100">
-              {getLoanTypeLabel(rate.loan_type)}
-            </td>
-            <td className="py-4 text-gray-900 dark:text-gray-100 text-lg font-bold">
-              {rate.rate.toFixed(2)}%
-            </td>
-            <td className="py-4 text-green-600">
-              -0.01%  {/* Calculate real 1-day change */}
-            </td>
-            <td className="py-4 text-green-600">
-              +0.03%  {/* Calculate real 1-week change */}
-            </td>
-            <td className="py-4 text-red-600">
-              -0.14%  {/* Calculate real 1-month change */}
-            </td>
-            <td className="py-4 text-sm text-gray-200">
-              {(rate.rate - 0.8).toFixed(2)}% - {(rate.rate + 0.5).toFixed(2)}%
-            </td>
-            <td className="py-4">
-              <div className="bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-sm font-bold border border-blue-500/30 w-fit">
-              {rate.clientsMatching || 0} active
-              </div>
-            </td>
-            </tr>
-          ))}
-          </tbody>
-        </table>
-        </div>
-      </CardContent>
-      </Card>
+        </thead>
+        <tbody>
+          {rates.map((rate) => {
+            // Helper function to format change with color
+            const formatChange = (change: number | undefined) => {
+              if (change === undefined || change === null) return <span className="text-gray-400">--</span>
+              
+              if (change === 0) {
+                return <span className="text-blue-600 dark:text-blue-400">+0.00%</span>
+              }
+              
+              const isPositive = change > 0
+              const colorClass = isPositive 
+                ? 'text-red-600 dark:text-red-400' 
+                : 'text-green-600 dark:text-green-400'
+              
+              return (
+                <span className={colorClass}>
+                  {isPositive ? '+' : ''}{change.toFixed(2)}%
+                </span>
+              )
+            }
+
+            return (
+              <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
+                <td className="py-4 font-medium text-gray-900 dark:text-gray-100">
+                  {getLoanTypeLabel(rate.loan_type)}
+                </td>
+                <td className="py-4 text-gray-900 dark:text-gray-100 text-lg font-bold">
+                  {rate.rate.toFixed(2)}%
+                </td>
+                <td className="py-4">
+                  {formatChange(rate.change)}
+                </td>
+                <td className="py-4">
+                  {formatChange(rate.change_1_week)}
+                </td>
+                <td className="py-4">
+                  {formatChange(rate.change_1_month)}
+                </td>
+                <td className="py-4">
+                  {formatChange(rate.change_1_year)}
+                </td>
+                <td className="py-4 text-sm text-gray-600 dark:text-gray-400">
+                  {rate.range_52_week_low && rate.range_52_week_high ? (
+                    `${rate.range_52_week_low.toFixed(2)}% - ${rate.range_52_week_high.toFixed(2)}%`
+                  ) : (
+                    <span className="text-gray-400 italic">Updating...</span>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+      * Data sourced directly from Mortgage News Daily Rate Index
+      <br />
+      * Red = rate increase, Green = rate decrease, Blue = no change
+    </div>
+  </CardContent>
+</Card>
 
       {/* Development Tools */}
       {import.meta.env.VITE_APP_ENV === 'development' && (
