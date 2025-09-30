@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { CreditCard, Check, Star, Shield, Zap, Loader2, Calendar, AlertCircle, ExternalLink, Gift, Clock } from 'lucide-react'
+import { CreditCard, Check, Star, Shield, Zap, Loader2, Calendar, AlertCircle, ExternalLink, Gift, Clock, Crown, TrendingUp } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { products } from '../stripe-config'
@@ -19,6 +19,7 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
   const [success, setSuccess] = useState('')
   const [billingHistory, setBillingHistory] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  
   const getTrialDaysRemaining = () => {
     if (!subscription?.current_period_end) return 0
     const endDate = new Date(subscription.current_period_end * 1000)
@@ -27,12 +28,10 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return Math.max(0, diffDays)
   }
+  
   const urlParams = new URLSearchParams(window.location.search)
-
-  // Determine billing variant based on user state
   const isNewUser = !subscription || subscription.status === 'not_started'
   const isTrialExpiring = subscription?.subscription_status === 'trialing' && getTrialDaysRemaining() <= 3
-// Show onboarding if: URL param OR new user OR during trial period
   const isOnboarding = urlParams.get('onboarding') === 'true'
   const isTrialing = subscription?.status === 'trialing'
   const actualVariant = isOnboarding || isNewUser || isTrialing ? 'onboarding' : variant
@@ -42,15 +41,12 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
   const devMode = import.meta.env.VITE_DEV_MODE === 'true'
 
   useEffect(() => {
-    // Check for success/cancel parameters
     if (urlParams.get('success')) {
       setSuccess('Payment successful! Your subscription is now active.')
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
     if (urlParams.get('canceled')) {
       setError('Payment was canceled. You can try again anytime.')
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
@@ -91,7 +87,6 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
     
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      console.log('Current session:', session); 
       if (!session) {
         throw new Error('No active session')
       }
@@ -176,7 +171,7 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount / 100) // Stripe amounts are in cents
+    }).format(amount / 100)
   }
 
   const features = [
@@ -197,56 +192,71 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
   if (subscriptionLoading) {
     return (
       <div className="max-w-4xl mx-auto flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-8">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
+        </div>
       </div>
     )
   }
 
-  // Onboarding Experience for New Users
+  // Onboarding Experience with Glassmorphism
   if (actualVariant === 'onboarding') {
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Welcome Header */}
-        <div className="text-center bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 text-white">
-          <Gift className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-4xl font-bold mb-2">
-  {isOnboarding && !subscription ? 'Welcome to Rate Monitor Pro! 🎉' : 'Your Free Trial is Active! 🚀'}
-</h1>
-<p className="text-xl text-blue-100 mb-4">
-  {isOnboarding && !subscription 
-    ? 'Your 14-day free trial starts now - no credit card required'
-    : `${getTrialDaysRemaining()} days remaining in your free trial`
-  }
-</p>
-          <div className="bg-white/20 rounded-xl p-4 inline-block">
-            <p className="text-lg font-semibold">
-              Trial expires in {getTrialDaysRemaining()} days
-            </p>
+        {/* Welcome Header with Glassmorphism */}
+        <div className="relative overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+          <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-3xl p-8 text-white">
+            <div className="text-center">
+              <Gift className="w-16 h-16 mx-auto mb-4 drop-shadow-sm" />
+              <h1 className="text-4xl font-bold mb-2 drop-shadow-sm">
+                {isOnboarding && !subscription ? 'Welcome to Rate Monitor Pro! 🎉' : 'Your Free Trial is Active! 🚀'}
+              </h1>
+              <p className="text-xl text-white/90 mb-4">
+                {isOnboarding && !subscription 
+                  ? 'Your 14-day free trial starts now - no credit card required'
+                  : `${getTrialDaysRemaining()} days remaining in your free trial`
+                }
+              </p>
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 inline-block border border-white/30">
+                <p className="text-lg font-semibold">
+                  Trial expires in {getTrialDaysRemaining()} days
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* What's Included */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-center text-2xl">
+        {/* Features Showcase with Glassmorphism */}
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-8">
+          <div className="text-center mb-8">
+            <Crown className="w-12 h-12 mx-auto mb-4 text-blue-600" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               Everything You Need to Scale Your Business
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              {features.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <span className="text-gray-700 dark:text-gray-300">{feature}</span>
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Full access to all premium features during your trial
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            {features.map((feature, index) => (
+              <div key={index} className="flex items-center space-x-3 p-3 bg-white/40 dark:bg-gray-700/40 rounded-xl backdrop-blur-sm">
+                <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Check className="w-4 h-4 text-white" />
                 </div>
-              ))}
-            </div>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">{feature}</span>
+              </div>
+            ))}
+          </div>
 
-            <div className="text-center space-y-4">
-              <p className="text-lg text-gray-600 dark:text-gray-400">
-                Start exploring all features immediately. When you're ready to continue after your trial:
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          <div className="text-center space-y-6">
+            <p className="text-lg text-gray-600 dark:text-gray-400">
+              Start exploring all features immediately. When you're ready to continue after your trial:
+            </p>
+            <div className="relative backdrop-blur-sm bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200/50 dark:border-blue-700/50 rounded-2xl p-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-indigo-600/5 rounded-2xl"></div>
+              <div className="relative">
                 <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                   ${products[0].price}/month
                 </div>
@@ -257,109 +267,105 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
                   onClick={() => handleSubscribe(products[0].priceId)} 
                   loading={loading}
                   size="lg"
-                  className="px-8"
+                  className="px-8 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 >
                   <CreditCard className="w-5 h-5 mr-2" />
                   Subscribe Now (Optional)
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Quick Start Guide */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Get Started in 3 Easy Steps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-xl font-bold text-blue-600">1</span>
+        {/* Quick Start Guide with Glassmorphism */}
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-8">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center">
+            Get Started in 3 Easy Steps
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { number: 1, title: 'Add Your Clients', desc: 'Import or manually add your client database with target rates', color: 'from-blue-500 to-blue-600' },
+              { number: 2, title: 'Set Up Monitoring', desc: 'Configure rate alerts and automated calling preferences', color: 'from-green-500 to-green-600' },
+              { number: 3, title: 'Watch It Work', desc: 'Get notified when rates hit targets and close more deals', color: 'from-purple-500 to-purple-600' }
+            ].map((step, index) => (
+              <div key={index} className="text-center">
+                <div className={`w-12 h-12 bg-gradient-to-r ${step.color} rounded-xl flex items-center justify-center mx-auto mb-4`}>
+                  <span className="text-xl font-bold text-white">{step.number}</span>
                 </div>
-                <h3 className="font-semibold mb-2">Add Your Clients</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Import or manually add your client database with target rates
-                </p>
+                <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{step.title}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{step.desc}</p>
               </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-xl font-bold text-green-600">2</span>
-                </div>
-                <h3 className="font-semibold mb-2">Set Up Monitoring</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Configure rate alerts and automated calling preferences
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <span className="text-xl font-bold text-purple-600">3</span>
-                </div>
-                <h3 className="font-semibold mb-2">Watch It Work</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Get notified when rates hit targets and close more deals
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
-  // Management Experience for Existing Users
+  // Management Experience with Glassmorphism
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          Billing & Subscription
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Manage your Rate Monitor Pro subscription
-        </p>
+      {/* Header with Glassmorphism */}
+      <div className="relative overflow-hidden rounded-3xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
+        <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-3xl p-8 text-white">
+          <div className="text-center">
+            <CreditCard className="w-12 h-12 mx-auto mb-4 drop-shadow-sm" />
+            <h1 className="text-3xl font-bold mb-2 drop-shadow-sm">
+              Billing & Subscription
+            </h1>
+            <p className="text-white/90 text-lg">
+              Manage your Rate Monitor Pro subscription
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Development Mode Notice */}
       {devMode && (
-        <Card className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              <p className="text-yellow-800 dark:text-yellow-300 font-medium">
-                Development Mode: Subscription checks are bypassed
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative backdrop-blur-sm bg-yellow-50/60 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-700/50 rounded-2xl p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <p className="text-yellow-800 dark:text-yellow-300 font-medium">
+              Development Mode: Subscription checks are bypassed
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Trial Expiring Warning */}
       {isTrialExpiring && (
-        <Card className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <Clock className="w-8 h-8 text-orange-600" />
-              <div className="flex-1">
-                <h3 className="font-semibold text-orange-900 dark:text-orange-300 mb-2">
-                  Trial Ending Soon
-                </h3>
-                <p className="text-orange-800 dark:text-orange-300">
-                  Your trial expires in {getTrialDaysRemaining()} days. Subscribe now to continue using Rate Monitor Pro without interruption.
-                </p>
-              </div>
-              <Button onClick={() => handleSubscribe(products[0].priceId)} loading={loading}>
-                Subscribe Now
-              </Button>
+        <div className="relative backdrop-blur-sm bg-orange-50/60 dark:bg-orange-900/20 border border-orange-200/50 dark:border-orange-700/50 rounded-2xl p-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+              <Clock className="w-6 h-6 text-white" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex-1">
+              <h3 className="font-semibold text-orange-900 dark:text-orange-300 mb-2">
+                Trial Ending Soon
+              </h3>
+              <p className="text-orange-800 dark:text-orange-300">
+                Your trial expires in {getTrialDaysRemaining()} days. Subscribe now to continue using Rate Monitor Pro without interruption.
+              </p>
+            </div>
+            <Button 
+              onClick={() => handleSubscribe(products[0].priceId)} 
+              loading={loading}
+              className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+            >
+              Subscribe Now
+            </Button>
+          </div>
+        </div>
       )}
 
-      {/* Current Plan Status */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+      {/* Current Plan Status with Glassmorphism */}
+      <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+              <Star className="w-6 h-6 text-white" />
+            </div>
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
                 Current Plan: {hasActiveSubscription ? currentProduct?.name || 'Active Subscription' : 'No Active Subscription'}
@@ -376,77 +382,74 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
                 )}
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                ${hasActiveSubscription ? currentProduct?.price || '49.99' : '0'}
-              </p>
-              <p className="text-sm text-gray-500">per month</p>
-            </div>
           </div>
-          
-          {hasActiveSubscription && !isTrialing && (
-            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button 
-                variant="outline" 
-                onClick={handleCancelSubscription}
-                loading={loading}
-                size="sm"
-              >
-                Cancel Subscription
-              </Button>
-            </div>
-          )}
+          <div className="text-right">
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              ${hasActiveSubscription ? currentProduct?.price || '49.99' : '0'}
+            </p>
+            <p className="text-sm text-gray-500">per month</p>
+          </div>
+        </div>
+        
+        {hasActiveSubscription && !isTrialing && (
+          <div className="pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
+            <Button 
+              variant="outline" 
+              onClick={handleCancelSubscription}
+              loading={loading}
+              size="sm"
+              className="backdrop-blur-sm bg-white/50 dark:bg-gray-700/50"
+            >
+              Manage Subscription
+            </Button>
+          </div>
+        )}
 
-            {subscription?.cancel_at_period_end && (
-              <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                 <p className="text-orange-800 dark:text-orange-300 text-sm">
-                 Your subscription is scheduled to cancel on {formatDate(new Date(subscription.current_period_end * 1000).toISOString())}. 
-                  You'll continue to have full access until then.
-                 </p>
-              </div>
-            )}
-        </CardContent>
-      </Card>
+        {subscription?.cancel_at_period_end && (
+          <div className="mt-4 p-3 bg-orange-50/60 dark:bg-orange-900/20 rounded-xl border border-orange-200/50 dark:border-orange-700/50 backdrop-blur-sm">
+            <p className="text-orange-800 dark:text-orange-300 text-sm">
+              Your subscription is scheduled to cancel on {formatDate(new Date(subscription.current_period_end * 1000).toISOString())}. 
+              You'll continue to have full access until then.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Error/Success Messages */}
       {error && (
-        <Card className="border-red-200 dark:border-red-800">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <p className="text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative backdrop-blur-sm bg-red-50/60 dark:bg-red-900/20 border border-red-200/50 dark:border-red-700/50 rounded-2xl p-4">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-red-600" />
+            <p className="text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        </div>
       )}
 
       {success && (
-        <Card className="border-green-200 dark:border-green-800">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Check className="w-5 h-5 text-green-600" />
-              <p className="text-green-600 dark:text-green-400">{success}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative backdrop-blur-sm bg-green-50/60 dark:bg-green-900/20 border border-green-200/50 dark:border-green-700/50 rounded-2xl p-4">
+          <div className="flex items-center space-x-2">
+            <Check className="w-5 h-5 text-green-600" />
+            <p className="text-green-600 dark:text-green-400">{success}</p>
+          </div>
+        </div>
       )}
 
       {/* Pricing Plans for Non-Subscribers */}
       {!hasActiveSubscription && products.map((product, index) => (
-        <Card key={product.priceId} className="relative overflow-hidden">
-          {index === 0 && (
-            <div className="absolute top-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-bl-2xl">
-              <div className="flex items-center space-x-1">
-                <Star className="w-4 h-4" />
-                <span className="text-sm font-medium">Most Popular</span>
+        <div key={product.priceId} className="relative overflow-hidden">
+          <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-8">
+            {index === 0 && (
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-bl-2xl rounded-tr-2xl">
+                <div className="flex items-center space-x-1">
+                  <Star className="w-4 h-4" />
+                  <span className="text-sm font-medium">Most Popular</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                <Zap className="w-6 h-6 text-white" />
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center">
+                <Zap className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -456,29 +459,32 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
                   {product.description}
                 </p>
               </div>
-            </CardTitle>
-          </CardHeader>
+            </div>
 
-          <CardContent>
-            <div className="mb-6">
-              <div className="flex items-baseline space-x-2">
+            <div className="mb-8">
+              <div className="flex items-baseline space-x-2 mb-2">
                 <span className="text-5xl font-bold text-gray-900 dark:text-gray-100">
                   ${product.price}
                 </span>
-                <span className="text-gray-600 dark:text-gray-400">
+                <span className="text-gray-600 dark:text-gray-400 text-lg">
                   per {product.interval}
                 </span>
               </div>
-              <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-                14-day free trial • Cancel anytime
-              </p>
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  14-day free trial • Cancel anytime
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
               {features.map((feature, featureIndex) => (
-                <div key={featureIndex} className="flex items-center space-x-2">
-                  <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">{feature}</span>
+                <div key={featureIndex} className="flex items-center space-x-3 p-3 bg-white/40 dark:bg-gray-700/40 rounded-xl backdrop-blur-sm">
+                  <div className="w-5 h-5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{feature}</span>
                 </div>
               ))}
             </div>
@@ -487,137 +493,116 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
               onClick={() => handleSubscribe(product.priceId)} 
               loading={loading}
               size="lg" 
-              className="w-full mb-4"
+              className="w-full mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
             >
               <CreditCard className="w-5 h-5 mr-2" />
               Start Free Trial
             </Button>
 
             <div className="text-center space-y-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                🔒 Secure payment processing by Stripe
-              </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                ✨ Cancel anytime • 30-day money-back guarantee
-              </p>
+              <div className="flex items-center justify-center space-x-2">
+                <Shield className="w-4 h-4 text-gray-600" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Secure payment processing by Stripe
+                </p>
+              </div>
+              <div className="flex items-center justify-center space-x-2">
+                <Check className="w-4 h-4 text-green-600" />
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Cancel anytime • 30-day money-back guarantee
+                </p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ))}
 
-      {/* Billing History */}
+      {/* Billing History with Glassmorphism */}
       {hasActiveSubscription && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calendar className="w-5 h-5" />
-              <span>Billing History</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingHistory ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-              </div>
-            ) : billingHistory.length > 0 ? (
-              <div className="space-y-4">
-                {billingHistory.map((bill) => (
-                  <div key={bill.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-gray-100">
-                        {formatCurrency(bill.amount)}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {formatDate(bill.created_at)} • {bill.status}
-                      </p>
-                    </div>
-                    {bill.invoice_pdf && (
-                      <Button variant="outline" size="sm">
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Invoice
-                      </Button>
-                    )}
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-white" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Billing History
+            </h3>
+          </div>
+          
+          {loadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+            </div>
+          ) : billingHistory.length > 0 ? (
+            <div className="space-y-3">
+              {billingHistory.map((bill) => (
+                <div key={bill.id} className="flex items-center justify-between p-4 bg-white/40 dark:bg-gray-700/40 rounded-xl backdrop-blur-sm">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {formatCurrency(bill.amount)}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {formatDate(bill.created_at)} • {bill.status}
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
-                No billing history available yet.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                  {bill.invoice_pdf && (
+                    <Button variant="outline" size="sm" className="backdrop-blur-sm bg-white/50 dark:bg-gray-700/50">
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Invoice
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-400 text-center py-8">
+              No billing history available yet.
+            </p>
+          )}
+        </div>
       )}
 
-      {/* Value Proposition */}
+      {/* Value Proposition with Glassmorphism */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Zap className="w-6 h-6 text-green-600" />
+        {[
+          { icon: Zap, title: 'Save Time', desc: 'Automated workflows save 10+ hours per week on client management and follow-ups', color: 'from-green-500 to-emerald-500' },
+          { icon: TrendingUp, title: 'Increase Revenue', desc: 'Never miss rate opportunities. Average users see 35% increase in conversion rates', color: 'from-blue-500 to-blue-600' },
+          { icon: Shield, title: 'Stay Competitive', desc: 'AI-powered insights and automation keep you ahead of the competition', color: 'from-purple-500 to-purple-600' }
+        ].map((item, index) => (
+          <div key={index} className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 text-center">
+            <div className={`w-12 h-12 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center mx-auto mb-4`}>
+              <item.icon className="w-6 h-6 text-white" />
             </div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Save Time
+              {item.title}
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Automated workflows save 10+ hours per week on client management and follow-ups
+              {item.desc}
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Star className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Increase Revenue
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Never miss rate opportunities. Average users see 35% increase in conversion rates
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6 text-purple-600" />
-            </div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Stay Competitive
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              AI-powered insights and automation keep you ahead of the competition
-            </p>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
 
-      {/* Development Testing */}
+      {/* Development Testing with Glassmorphism */}
       {isDevelopment && (
-        <Card className="border-blue-200 dark:border-blue-800">
-          <CardHeader>
-            <CardTitle className="text-blue-600 dark:text-blue-400">
-              Development Testing
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Use Stripe test cards for testing:
-              </p>
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg space-y-2 text-sm font-mono">
-                <div>Success: 4242 4242 4242 4242</div>
-                <div>Decline: 4000 0000 0000 0002</div>
-                <div>Insufficient funds: 4000 0000 0000 9995</div>
-              </div>
-              <p className="text-xs text-gray-500">
-                Use any future expiry date and any 3-digit CVC
-              </p>
+        <div className="relative backdrop-blur-sm bg-blue-50/60 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-700/50 rounded-2xl p-6">
+          <h4 className="text-blue-600 dark:text-blue-400 font-semibold mb-4">
+            Development Testing
+          </h4>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Use Stripe test cards for testing:
+            </p>
+            <div className="bg-gray-50/60 dark:bg-gray-800/60 backdrop-blur-sm p-4 rounded-xl space-y-2 text-sm font-mono border border-gray-200/50 dark:border-gray-700/50">
+              <div className="text-gray-900 dark:text-gray-100">Success: 4242 4242 4242 4242</div>
+              <div className="text-gray-900 dark:text-gray-100">Decline: 4000 0000 0000 0002</div>
+              <div className="text-gray-900 dark:text-gray-100">Insufficient funds: 4000 0000 0000 9995</div>
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-xs text-gray-500">
+              Use any future expiry date and any 3-digit CVC
+            </p>
+          </div>
+        </div>
       )}
     </div>
   )

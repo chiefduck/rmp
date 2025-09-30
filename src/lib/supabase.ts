@@ -8,14 +8,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // Database types
 export interface Profile {
   id: string
+  email?: string
   full_name?: string
   avatar_url?: string
   company?: string
+  company_name?: string  // You have both company and company_name
   phone?: string
-  theme: 'light' | 'dark'
-  notifications_enabled: boolean
-  created_at: string
-  updated_at: string
+  created_at?: string
+  updated_at?: string
+  ghl_location_id?: string
+  ghl_rmp_contact_id?: string
+  timezone?: string
+  address?: string
+  city?: string
+  state?: string
+  postal_code?: string
+  country?: string
+  website?: string
+  has_seen_welcome?: boolean
+  theme?: 'light' | 'dark'
+  notifications_enabled?: boolean
 }
 
 export interface Client {
@@ -92,4 +104,25 @@ export interface AIInteraction {
   response: string
   context?: any
   created_at: string
+}
+export interface EmailPreferences {
+  id: string
+  user_id: string
+  rate_alerts: boolean
+  weekly_reports: boolean
+  client_updates: boolean
+  market_insights: boolean
+  product_updates: boolean
+  created_at: string
+  updated_at: string
+}
+export interface NotificationPreferences {
+  id: string
+  user_id: string
+  in_app_notifications: boolean
+  rate_alerts: boolean
+  call_results: boolean
+  system_updates: boolean
+  created_at: string
+  updated_at: string
 }
