@@ -17,7 +17,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   
-  // Use ref for password security
   const passwordRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     email: '',
@@ -31,7 +30,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setError('')
     setSuccessMessage('')
 
-    // Get password from ref, not state
     const password = passwordRef.current?.value || ''
     
     if (!password || password.length < 6) {
@@ -40,33 +38,50 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       return
     }
 
+    console.log('Attempting auth:', isSignUp ? 'signup' : 'signin', formData.email)
+
     try {
       if (isSignUp) {
+        console.log('Starting signup...')
         const { error } = await signUp(formData.email, password, {
           full_name: formData.fullName,
           company: formData.company
         })
         if (error) throw error
         
-        // Show success message and clear form
+        console.log('Signup successful')
         setSuccessMessage('Success! Please check your email for a verification link to complete your signup.')
         clearForm()
         
-        // Auto-close modal after showing success message briefly
         setTimeout(() => {
           setSuccessMessage('')
           onClose()
-        }, 5000) // Close after 5 seconds so user can read message
+        }, 5000)
         
       } else {
-        const { error } = await signIn(formData.email, password)
+        console.log('Starting signin...')
+        const { data, error } = await signIn(formData.email, password)
+        
+        console.log('Signin response:', { 
+          hasData: !!data, 
+          hasUser: !!data?.user,
+          hasSession: !!data?.session,
+          error: error?.message 
+        })
+        
         if (error) throw error
         
-        // Login successful - close modal immediately
+        console.log('Signin successful, closing modal')
         clearForm()
         onClose()
+        
+        // Force a small delay to let auth state update
+        setTimeout(() => {
+          console.log('Auth state should be updated now')
+        }, 100)
       }
     } catch (error: any) {
+      console.error('Auth error:', error)
       setError(error.message)
     } finally {
       setLoading(false)
@@ -133,7 +148,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           required
         />
 
-        {/* Secure password input using ref */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Password
@@ -164,14 +178,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </p>
         </div>
 
-        {/* Success Message */}
         {successMessage && (
           <div className="text-sm p-3 rounded-lg bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
             {successMessage}
           </div>
         )}
 
-        {/* Error Message */}
         {error && (
           <div className="text-sm p-3 rounded-lg bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
             {error}
@@ -182,7 +194,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           type="submit"
           loading={loading}
           className="w-full"
-          disabled={loading || !!successMessage} // Disable if showing success message
+          disabled={loading || !!successMessage}
         >
           {isSignUp ? 'Create Account' : 'Sign In'}
         </Button>

@@ -81,7 +81,7 @@ export const Dashboard: React.FC = () => {
 
       setMarketData({
         current_30yr: currentRates['30yr_conventional']?.rate_value || null,
-        current_15yr: currentRates['15yr_15yr_conventional']?.rate_value || null,
+        current_15yr: currentRates['15yr_conventional']?.rate_value || null,
         current_fha: currentRates['30yr_fha']?.rate_value || null,
         current_va: currentRates['30yr_va']?.rate_value || null,
         current_jumbo: currentRates['30yr_jumbo']?.rate_value || null,

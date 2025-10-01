@@ -15,9 +15,52 @@ import { Settings } from './pages/Settings'
 import { LandingPage } from './pages/LandingPage'
 import { AuthCallback } from './pages/AuthCallback'
 import { useState } from 'react'
+import { useSubscription } from './hooks/useSubscription'
+
+const LandingRoute: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
+  const { user } = useAuth()
+  const { hasActiveSubscription, loading, subscription } = useSubscription()
+
+  // Debug logging
+  console.log('LandingRoute render:', { 
+    userId: user?.id,
+    userEmail: user?.email,
+    hasUser: !!user, 
+    hasActiveSubscription, 
+    loading,
+    subscriptionStatus: subscription?.status
+  })
+
+  // Show loading while checking auth or subscription
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+      </div>
+    )
+  }
+
+  // If logged in AND has active subscription, go to dashboard
+  if (user && hasActiveSubscription) {
+    console.log('Redirecting to dashboard')
+    return <Navigate to="/dashboard" replace />
+  }
+
+  console.log('Showing landing page')
+
+  // If logged in but NO subscription, they need to subscribe
+  // Keep them on landing page so they can see the issue or contact support
+  
+  // Otherwise show landing page (logged out OR logged in without subscription)
+  return (
+    <LandingPage 
+      onLogin={onShowAuth}
+      onGetStarted={onShowAuth}
+    />
+  )
+}
 
 const AppContent: React.FC = () => {
-  const { user } = useAuth()
   const [showAuthModal, setShowAuthModal] = useState(false)
 
   return (
@@ -26,16 +69,7 @@ const AppContent: React.FC = () => {
         {/* Public Routes */}
         <Route 
           path="/" 
-          element={
-            user ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <LandingPage 
-                onLogin={() => setShowAuthModal(true)}
-                onGetStarted={() => setShowAuthModal(true)}
-              />
-            )
-          } 
+          element={<LandingRoute onShowAuth={() => setShowAuthModal(true)} />}
         />
         
         {/* Auth Callback Route */}
@@ -52,11 +86,8 @@ const AppContent: React.FC = () => {
           <Route path="billing" element={<Billing />} />
         </Route>
         
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Catch all route - go to landing, not dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />

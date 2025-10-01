@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (userData.user) {
           const newProfile = {
             id: userData.user.id,
-            email: userData.user.email, // Add email to new profile
+            email: userData.user.email,
             full_name: userData.user.user_metadata?.full_name || null,
             company: null,
             phone: null
@@ -116,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const signUp = async (email: string, password: string, userData: any) => {
+    // Simple redirect to auth callback - it will handle Stripe checkout if needed
     const redirectTo = import.meta.env.VITE_APP_ENV === 'development' 
       ? 'http://localhost:5173/auth/callback'
       : `${window.location.origin}/auth/callback`

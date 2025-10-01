@@ -52,10 +52,11 @@ export const Billing: React.FC<BillingPageProps> = ({ variant = 'management' }) 
   }, [])
 
   useEffect(() => {
-    if (user && hasActiveSubscription && actualVariant === 'management') {
-      fetchBillingHistory()
+    // If new user without subscription, auto-start checkout
+    if (user && !subscription && !loading) {
+      handleSubscribe(products[0].priceId)
     }
-  }, [user, hasActiveSubscription, actualVariant])
+  }, [user, subscription, loading])
 
   const fetchBillingHistory = async () => {
     if (!user) return

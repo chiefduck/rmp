@@ -1,6 +1,6 @@
-// File: src/pages/RateMonitor.tsx
+// File: src/pages/RateMonitor.tsx - WITH TIMESTAMP
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, AlertCircle, RefreshCw, Activity, Bell, Target } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertCircle, RefreshCw, Activity, Bell, Target, Clock } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import HistoricalRateChart from '../components/RateMonitor/HistoricalRateChart'
@@ -13,20 +13,18 @@ interface RateDisplayData {
   change: number
   trend: 'up' | 'down'
   lastUpdate: string
-  // Add the MND data fields
   range_52_week_low?: number
   range_52_week_high?: number
   change_1_week?: number
   change_1_month?: number
   change_1_year?: number
-  // Remove this since we removed the clients column
-  // clientsMatching?: number
 }
 
 export const RateMonitor: React.FC = () => {
   const [rates, setRates] = useState<RateDisplayData[]>([])
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [dataLastUpdated, setDataLastUpdated] = useState<string>('')
   const [rateHistory, setRateHistory] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
 
@@ -67,12 +65,17 @@ export const RateMonitor: React.FC = () => {
             change_1_month: rateData.change_1_month,
             change_1_year: rateData.change_1_year
           })
+          
+          // Set the data last updated time from the first rate
+          if (!dataLastUpdated) {
+            setDataLastUpdated(rateData.rate_date)
+          }
         }
       })
   
       // Always add 15yr rate - get latest available
       try {
-        const latest15yr = await RateService.getCurrentRate(15, '15yr_conventional')
+        const latest15yr = await RateService.getCurrentRate(15, 'conventional')
         if (latest15yr) {
           displayRates.push({
             loan_type: '15yr',
@@ -100,7 +103,7 @@ export const RateMonitor: React.FC = () => {
 
   const fetchRateHistory = async () => {
     try {
-      const history = await RateService.getRateHistory(30, 'conventional', 30) // 30-year rates, last 30 days
+      const history = await RateService.getRateHistory(30, 'conventional', 30)
       setRateHistory(history)
     } catch (error) {
       console.error('Error fetching rate history:', error)
@@ -118,11 +121,9 @@ export const RateMonitor: React.FC = () => {
         urgent: true
       }))
 
-      // Add some market alerts based on rate changes
       const currentRates = await RateService.getCurrentRates()
       const marketAlerts: any[] = []
 
-      // Check for significant rate movements
       for (const [key, rateData] of Object.entries(currentRates)) {
         const loanType = key.replace(/^\d+yr_/, '')
         const termYears = key.startsWith('15yr') ? 15 : 30
@@ -149,7 +150,6 @@ export const RateMonitor: React.FC = () => {
 
       const allAlerts = [...formattedAlerts, ...marketAlerts]
       
-      // Add message if no real alerts
       if (allAlerts.length === 0) {
         allAlerts.push({
           id: 1,
@@ -160,10 +160,10 @@ export const RateMonitor: React.FC = () => {
         })
       }
 
-      setAlerts(allAlerts.slice(0, 5)) // Show max 5 alerts
+      setAlerts(allAlerts.slice(0, 5))
     } catch (error) {
       console.error('Error fetching real alerts:', error)
-      setAlerts([]) // Empty array instead of fake alerts
+      setAlerts([])
     }
   }
 
@@ -172,18 +172,15 @@ export const RateMonitor: React.FC = () => {
     try {
       console.log('Fetching fresh rates from MND...')
       
-      // First, try to get fresh data from MND
       const freshDataSuccess = await RateService.fetchFreshRates()
       
       if (freshDataSuccess) {
         console.log('✅ Successfully fetched fresh MND data')
-        // Wait a moment for data to be stored
         await new Promise(resolve => setTimeout(resolve, 2000))
       } else {
         console.log('⚠️ Failed to fetch fresh data, using existing database data')
       }
       
-      // Now refresh the UI with latest data (fresh or existing)
       await fetchRates()
       await fetchRateHistory()
       await fetchRealAlerts()
@@ -206,7 +203,7 @@ export const RateMonitor: React.FC = () => {
   const getLoanTypeLabel = (type: string) => {
     switch (type) {
       case 'conventional': return '30-Year Fixed'
-      case '15yr_conventional': return '15-Year Fixed'
+      case '15yr': return '15-Year Fixed'
       case 'fha': return 'FHA Loan'
       case 'va': return 'VA Loan'
       case 'jumbo': return 'Jumbo Loan'
@@ -214,17 +211,48 @@ export const RateMonitor: React.FC = () => {
     }
   }
 
+  const formatDateTime = (date: Date) => {
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
+
+  const formatDateOnly = (dateString: string) => {
+    const date = new Date(dateString + 'T00:00:00')
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Timestamps */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Rate Monitor
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Last updated: {lastRefresh.toLocaleTimeString()}
-          </p>
+          <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <Clock className="w-4 h-4" />
+              <span>Last refreshed: {formatDateTime(lastRefresh)}</span>
+            </div>
+            {dataLastUpdated && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="font-medium text-blue-900 dark:text-blue-300">
+                  MND Data: {formatDateOnly(dataLastUpdated)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <Button onClick={refreshRates} loading={loading}>
           <RefreshCw className="w-4 h-4 mr-2" />
@@ -264,13 +292,13 @@ export const RateMonitor: React.FC = () => {
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">52-week high:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {(rate.rate + 0.5).toFixed(2)}%
+                    {rate.range_52_week_high ? `${rate.range_52_week_high.toFixed(2)}%` : '--'}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">52-week low:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {(rate.rate - 0.8).toFixed(2)}%
+                    {rate.range_52_week_low ? `${rate.range_52_week_low.toFixed(2)}%` : '--'}
                   </span>
                 </div>
               </div>
@@ -279,7 +307,7 @@ export const RateMonitor: React.FC = () => {
         ))}
       </div>
 
-      {/* Historical Rate Chart with Real Data */}
+      {/* Historical Rate Chart */}
       <HistoricalRateChart 
         height={500}
         variant="full"
@@ -324,91 +352,89 @@ export const RateMonitor: React.FC = () => {
         </CardContent>
       </Card>
 
-      
-      // Rate Comparison Table - Complete MND Format (No Clients Column)
-<Card>
-  <CardHeader>
-    <CardTitle>Rate Comparison - Live Market Data</CardTitle>
-    <p className="text-sm text-gray-600 dark:text-gray-400">
-      Real-time data from Mortgage News Daily - updated daily
-    </p>
-  </CardHeader>
-  <CardContent>
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-700">
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Loan Type</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Current</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 day</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 week</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 month</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 year</th>
-            <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">52 Week Range</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rates.map((rate) => {
-            // Helper function to format change with color
-            const formatChange = (change: number | undefined) => {
-              if (change === undefined || change === null) return <span className="text-gray-400">--</span>
-              
-              if (change === 0) {
-                return <span className="text-blue-600 dark:text-blue-400">+0.00%</span>
-              }
-              
-              const isPositive = change > 0
-              const colorClass = isPositive 
-                ? 'text-red-600 dark:text-red-400' 
-                : 'text-green-600 dark:text-green-400'
-              
-              return (
-                <span className={colorClass}>
-                  {isPositive ? '+' : ''}{change.toFixed(2)}%
-                </span>
-              )
-            }
+      {/* Rate Comparison Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Rate Comparison - Live Market Data</CardTitle>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Real-time data from Mortgage News Daily - updated daily
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Loan Type</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">Current</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 day</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 week</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 month</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">1 year</th>
+                  <th className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">52 Week Range</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rates.map((rate) => {
+                  const formatChange = (change: number | undefined) => {
+                    if (change === undefined || change === null) return <span className="text-gray-400">--</span>
+                    
+                    if (change === 0) {
+                      return <span className="text-blue-600 dark:text-blue-400">+0.00%</span>
+                    }
+                    
+                    const isPositive = change > 0
+                    const colorClass = isPositive 
+                      ? 'text-red-600 dark:text-red-400' 
+                      : 'text-green-600 dark:text-green-400'
+                    
+                    return (
+                      <span className={colorClass}>
+                        {isPositive ? '+' : ''}{change.toFixed(2)}%
+                      </span>
+                    )
+                  }
 
-            return (
-              <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
-                <td className="py-4 font-medium text-gray-900 dark:text-gray-100">
-                  {getLoanTypeLabel(rate.loan_type)}
-                </td>
-                <td className="py-4 text-gray-900 dark:text-gray-100 text-lg font-bold">
-                  {rate.rate.toFixed(2)}%
-                </td>
-                <td className="py-4">
-                  {formatChange(rate.change)}
-                </td>
-                <td className="py-4">
-                  {formatChange(rate.change_1_week)}
-                </td>
-                <td className="py-4">
-                  {formatChange(rate.change_1_month)}
-                </td>
-                <td className="py-4">
-                  {formatChange(rate.change_1_year)}
-                </td>
-                <td className="py-4 text-sm text-gray-600 dark:text-gray-400">
-                  {rate.range_52_week_low && rate.range_52_week_high ? (
-                    `${rate.range_52_week_low.toFixed(2)}% - ${rate.range_52_week_high.toFixed(2)}%`
-                  ) : (
-                    <span className="text-gray-400 italic">Updating...</span>
-                  )}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-      * Data sourced directly from Mortgage News Daily Rate Index
-      <br />
-      * Red = rate increase, Green = rate decrease, Blue = no change
-    </div>
-  </CardContent>
-</Card>
+                  return (
+                    <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
+                      <td className="py-4 font-medium text-gray-900 dark:text-gray-100">
+                        {getLoanTypeLabel(rate.loan_type)}
+                      </td>
+                      <td className="py-4 text-gray-900 dark:text-gray-100 text-lg font-bold">
+                        {rate.rate.toFixed(2)}%
+                      </td>
+                      <td className="py-4">
+                        {formatChange(rate.change)}
+                      </td>
+                      <td className="py-4">
+                        {formatChange(rate.change_1_week)}
+                      </td>
+                      <td className="py-4">
+                        {formatChange(rate.change_1_month)}
+                      </td>
+                      <td className="py-4">
+                        {formatChange(rate.change_1_year)}
+                      </td>
+                      <td className="py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {rate.range_52_week_low && rate.range_52_week_high ? (
+                          `${rate.range_52_week_low.toFixed(2)}% - ${rate.range_52_week_high.toFixed(2)}%`
+                        ) : (
+                          <span className="text-gray-400 italic">Updating...</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+            * Data sourced directly from Mortgage News Daily Rate Index
+            <br />
+            * Red = rate increase, Green = rate decrease, Blue = no change
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Development Tools */}
       {import.meta.env.VITE_APP_ENV === 'development' && (

@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'npm:stripe@17.7.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,13 +16,23 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')
     
     console.log('Supabase URL:', supabaseUrl ? 'Set' : 'Missing')
     console.log('Service Role Key:', supabaseServiceKey ? 'Set' : 'Missing')
+    console.log('Stripe Secret:', stripeSecret ? 'Set' : 'Missing')
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !supabaseServiceKey || !stripeSecret) {
       throw new Error('Missing required environment variables')
     }
+
+    // Initialize Stripe
+    const stripe = new Stripe(stripeSecret, {
+      appInfo: {
+        name: 'Rate Monitor Pro',
+        version: '1.0.0',
+      },
+    })
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -45,9 +56,49 @@ serve(async (req) => {
       throw new Error('Unauthorized')
     }
 
-    console.log('Deleting user:', user.id)
+    console.log('Deleting account for user:', user.id)
 
-    // Use admin client to delete user
+    // Step 1: Get Stripe customer ID from database
+    const { data: stripeCustomer } = await supabaseAdmin
+      .from('stripe_customers')
+      .select('customer_id')
+      .eq('user_id', user.id)
+      .single()
+
+    // Step 2: Cancel and delete Stripe subscription if exists
+    if (stripeCustomer?.customer_id) {
+      console.log('Found Stripe customer:', stripeCustomer.customer_id)
+      
+      try {
+        // Get all subscriptions for this customer
+        const subscriptions = await stripe.subscriptions.list({
+          customer: stripeCustomer.customer_id,
+          limit: 100
+        })
+
+        // Cancel all active subscriptions immediately
+        for (const subscription of subscriptions.data) {
+          if (subscription.status === 'active' || subscription.status === 'trialing') {
+            console.log('Canceling subscription:', subscription.id)
+            await stripe.subscriptions.cancel(subscription.id)
+          }
+        }
+
+        // Delete the Stripe customer (this also cancels all subscriptions)
+        console.log('Deleting Stripe customer:', stripeCustomer.customer_id)
+        await stripe.customers.del(stripeCustomer.customer_id)
+        
+        console.log('Stripe customer deleted successfully')
+      } catch (stripeError) {
+        console.error('Stripe cleanup error (non-fatal):', stripeError)
+        // Continue with user deletion even if Stripe cleanup fails
+      }
+    } else {
+      console.log('No Stripe customer found for user')
+    }
+
+    // Step 3: Delete user from Supabase Auth (this triggers CASCADE delete for all related data)
+    console.log('Deleting user from Supabase Auth...')
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id)
 
     if (deleteError) {
@@ -55,10 +106,16 @@ serve(async (req) => {
       throw new Error(`Failed to delete user: ${deleteError.message}`)
     }
 
-    console.log('User deleted successfully')
+    console.log('User and all related data deleted successfully')
 
     return new Response(
-      JSON.stringify({ message: 'Account deleted successfully' }),
+      JSON.stringify({ 
+        message: 'Account deleted successfully',
+        details: {
+          user_deleted: true,
+          stripe_cleaned: !!stripeCustomer?.customer_id
+        }
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

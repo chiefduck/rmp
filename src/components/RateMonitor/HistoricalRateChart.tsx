@@ -128,7 +128,7 @@ export default function HistoricalRateChart({
         RateService.getRateHistory(30, 'fha', range.days),
         RateService.getRateHistory(30, 'va', range.days),
         RateService.getRateHistory(30, 'jumbo', range.days),
-        RateService.getRateHistory(15, '15yr_conventional', range.days)
+        RateService.getRateHistory(15, 'conventional', range.days)
       ]);
   
       // Transform the data into the format the chart expects

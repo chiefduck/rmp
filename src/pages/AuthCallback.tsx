@@ -1,7 +1,8 @@
-// src/pages/AuthCallback.tsx - Fixed to properly detect new users
+// src/pages/AuthCallback.tsx
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { products } from '../stripe-config'
 import { Loader2 } from 'lucide-react'
 
 export const AuthCallback: React.FC = () => {
@@ -20,52 +21,105 @@ export const AuthCallback: React.FC = () => {
           return
         }
 
-        if (data.session) {
-          const user = data.session.user
-          console.log('Auth callback for user:', user.id)
-          
-          setStatus('Checking account status...')
-          
-          // Check if user has a profile (indicates if they've been through onboarding)
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('has_seen_welcome')
-            .eq('id', user.id)
-            .single()
-
-          if (profileError && profileError.code !== 'PGRST116') {
-            console.error('Profile check error:', profileError)
-          }
-
-          // Determine if this is a new user based on profile welcome status
-          const isNewUser = !profile || !profile.has_seen_welcome
-
-          if (isNewUser) {
-            console.log('New user detected - redirecting to billing onboarding')
-            
-            // Mark that they've seen the welcome (so they don't see it again)
-            await supabase
-              .from('profiles')
-              .update({ has_seen_welcome: true })
-              .eq('id', user.id)
-            
-            // Redirect to onboarding billing experience
-            navigate('/billing?onboarding=true')
-          } else {
-            console.log('Existing user - redirecting to dashboard')
-            navigate('/dashboard')
-          }
-        } else {
-          // No session, redirect to home
+        if (!data.session) {
           navigate('/')
+          return
         }
+
+        const user = data.session.user
+        console.log('Email verified for user:', user.id)
+        
+        setStatus('Checking subscription...')
+        
+        // Check if user has a Stripe customer record
+        const { data: customer } = await supabase
+          .from('stripe_customers')
+          .select('customer_id')
+          .eq('user_id', user.id)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        // If no customer exists, this is a new signup - redirect to Stripe
+        if (!customer) {
+          console.log('New user - redirecting to Stripe Checkout')
+          setStatus('Creating checkout session...')
+          await redirectToStripeCheckout(data.session.access_token)
+          return
+        }
+
+        // Check subscription status
+        const { data: subscription } = await supabase
+          .from('stripe_subscriptions')
+          .select('status')
+          .eq('customer_id', customer.customer_id)
+          .is('deleted_at', null)
+          .maybeSingle()
+
+        // If they have active or trialing status, go to dashboard
+        if (subscription && ['active', 'trialing'].includes(subscription.status)) {
+          console.log('Existing user with active subscription - redirecting to dashboard')
+          navigate('/dashboard')
+        } else {
+          // No active subscription - redirect to Stripe
+          console.log('User needs to subscribe - redirecting to Stripe Checkout')
+          setStatus('Creating checkout session...')
+          await redirectToStripeCheckout(data.session.access_token)
+        }
+
       } catch (error) {
         console.error('Auth callback error:', error)
         navigate('/?error=auth_callback_failed')
       }
     }
 
-    // Small delay to ensure Supabase auth state is ready
+    const redirectToStripeCheckout = async (accessToken: string) => {
+      try {
+        // Get price ID from your stripe config
+        const PRICE_ID = products[0].priceId
+        
+        console.log('Creating Stripe checkout with price:', PRICE_ID)
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              price_id: PRICE_ID,
+              success_url: `${window.location.origin}/dashboard`,
+              cancel_url: `${window.location.origin}/`,
+            }),
+          }
+        )
+
+        console.log('Stripe checkout response status:', response.status)
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          console.error('Stripe checkout failed:', errorData)
+          throw new Error(`Failed to create checkout session: ${errorData.error || response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log('Stripe checkout data:', data)
+        
+        if (data.url) {
+          console.log('Redirecting to Stripe:', data.url)
+          // Redirect to Stripe Checkout
+          window.location.href = data.url
+        } else {
+          throw new Error('No checkout URL returned from Stripe')
+        }
+      } catch (error) {
+        console.error('Stripe checkout error:', error)
+        setStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        setTimeout(() => navigate('/'), 3000)
+      }
+    }
+
     const timer = setTimeout(handleAuthCallback, 1000)
     return () => clearTimeout(timer)
   }, [navigate])

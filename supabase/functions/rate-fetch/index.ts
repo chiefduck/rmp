@@ -79,7 +79,7 @@ async function fetchMNDRates(): Promise<MortgageRate[]> {
     // Rate mappings
     const rateMappings = [
       { label: '30 Yr. Fixed', termYears: 30, loanType: 'conventional' },
-      { label: '15 Yr. Fixed', termYears: 15, loanType: '15yr_conventional' },
+      { label: '15 Yr. Fixed', termYears: 15, loanType: 'conventional' },  
       { label: '30 Yr. FHA', termYears: 30, loanType: 'fha' },
       { label: '30 Yr. VA', termYears: 30, loanType: 'va' },
       { label: '30 Yr. Jumbo', termYears: 30, loanType: 'jumbo' },
