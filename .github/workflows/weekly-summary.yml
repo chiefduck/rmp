@@ -1,0 +1,15 @@
+name: Send Weekly Summary
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9am UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  send-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Weekly Summary
+        run: |
+          curl -X POST ${{ secrets.SUPABASE_URL }}/functions/v1/send-weekly-summary \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"

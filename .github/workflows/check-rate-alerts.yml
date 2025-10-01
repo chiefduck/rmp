@@ -1,0 +1,15 @@
+name: Check Rate Alerts
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  check-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Rate Alert Check
+        run: |
+          curl -X POST ${{ secrets.SUPABASE_URL }}/functions/v1/check-rate-alerts \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
