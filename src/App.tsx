@@ -16,42 +16,38 @@ import { LandingPage } from './pages/LandingPage'
 import { AuthCallback } from './pages/AuthCallback'
 import { useState } from 'react'
 import { useSubscription } from './hooks/useSubscription'
+import { Loader2 } from 'lucide-react'
 
-const LandingRoute: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
+// Simple component to handle landing page logic
+const Landing: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
   const { user } = useAuth()
-  const { hasActiveSubscription, loading, subscription } = useSubscription()
+  const { hasActiveSubscription, loading } = useSubscription()
 
-  // Debug logging
-  console.log('LandingRoute render:', { 
-    userId: user?.id,
-    userEmail: user?.email,
-    hasUser: !!user, 
-    hasActiveSubscription, 
-    loading,
-    subscriptionStatus: subscription?.status
+  console.log('Landing component render - should ONLY show when on / route:', {
+    path: window.location.pathname,
+    hasUser: !!user,
+    hasActiveSubscription,
+    loading
   })
 
-  // Show loading while checking auth or subscription
-  if (loading) {
+  // Show loader while checking subscription (only if logged in)
+  if (user && loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-gray-600 dark:text-gray-400">Loading...</div>
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
       </div>
     )
   }
 
-  // If logged in AND has active subscription, go to dashboard
+  // Redirect to dashboard if logged in with active subscription
   if (user && hasActiveSubscription) {
-    console.log('Redirecting to dashboard')
+    console.log('Landing: Redirecting to dashboard')
     return <Navigate to="/dashboard" replace />
   }
 
-  console.log('Showing landing page')
+  console.log('Landing: Showing landing page')
 
-  // If logged in but NO subscription, they need to subscribe
-  // Keep them on landing page so they can see the issue or contact support
-  
-  // Otherwise show landing page (logged out OR logged in without subscription)
+  // Show landing page (logged out OR logged in without subscription)
   return (
     <LandingPage 
       onLogin={onShowAuth}
@@ -66,27 +62,27 @@ const AppContent: React.FC = () => {
   return (
     <Router>
       <Routes>
-        {/* Public Routes */}
+        {/* Public Landing Page */}
         <Route 
           path="/" 
-          element={<LandingRoute onShowAuth={() => setShowAuthModal(true)} />}
+          element={<Landing onShowAuth={() => setShowAuthModal(true)} />}
         />
         
-        {/* Auth Callback Route */}
+        {/* Auth Callback */}
         <Route path="/auth/callback" element={<AuthCallback />} />
         
-        {/* Protected App Routes */}
-        <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="rates" element={<RateMonitor />} />
-          <Route path="crm" element={<CRM />} />
-          <Route path="ai-assistant" element={<AIAssistant />} />
-          <Route path="calling" element={<AutoCalling />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="billing" element={<Billing />} />
+        {/* All Protected Routes under one parent */}
+        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/rates" element={<RateMonitor />} />
+          <Route path="/crm" element={<CRM />} />
+          <Route path="/ai-assistant" element={<AIAssistant />} />
+          <Route path="/calling" element={<AutoCalling />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/billing" element={<Billing />} />
         </Route>
         
-        {/* Catch all route - go to landing, not dashboard */}
+        {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       

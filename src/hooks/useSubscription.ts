@@ -22,13 +22,17 @@ interface StripeSubscription {
 export const useSubscription = () => {
   const { user } = useAuth()
   const [subscription, setSubscription] = useState<StripeSubscription | null>(null)
+  // Initialize loading as true if user exists
   const [loading, setLoading] = useState(true)
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
 
   useEffect(() => {
+    // Reset state when user changes
+    setLoading(true)
+    setSubscription(null)
+    setHasActiveSubscription(false)
+
     if (!user) {
-      setSubscription(null)
-      setHasActiveSubscription(false)
       setLoading(false)
       return
     }
@@ -82,7 +86,9 @@ export const useSubscription = () => {
         setSubscription(null)
         setHasActiveSubscription(false)
       } finally {
+        // Always set loading to false when done
         setLoading(false)
+        isFetchingRef.current = false
       }
     }
 

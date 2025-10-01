@@ -14,8 +14,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { subscription, hasActiveSubscription, loading: subLoading } = useSubscription()
   const location = useLocation()
 
-  // Show loader while checking auth or subscription
+  console.log('ProtectedRoute render:', {
+    path: location.pathname,
+    authLoading,
+    subLoading,
+    hasUser: !!user,
+    hasActiveSubscription,
+    subscriptionStatus: subscription?.status
+  })
+
+  // Show loader while checking auth OR subscription
+  // Keep showing loader until we have a definitive answer
   if (authLoading || subLoading) {
+    console.log('ProtectedRoute: Showing loader')
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -28,13 +39,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Not logged in - redirect to home
   if (!user) {
+    console.log('ProtectedRoute: No user, redirecting to /')
     return <Navigate to="/" state={{ from: location }} replace />
   }
 
-  // Logged in but no active subscription - redirect to landing
+  // No active subscription - redirect to home
+  // This only happens after loading is complete
   if (!hasActiveSubscription) {
-    return <Navigate to="/" replace />
+    console.log('ProtectedRoute: No subscription, redirecting to /')
+    return <Navigate to="/" state={{ from: location }} replace />
   }
+
+  console.log('ProtectedRoute: All checks passed, rendering children')
 
   // All checks passed - show the protected content
   return <>{children}</>

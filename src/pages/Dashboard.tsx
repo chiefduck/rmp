@@ -287,46 +287,67 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stats Grid with Glassmorphism */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Clients</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalClients}</p>
-              <p className="text-sm mt-1 text-green-600 dark:text-green-400">+3 this week</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Active Opportunities</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.activeOpportunities}</p>
-              <p className="text-sm mt-1 text-green-600 dark:text-green-400">+2 since yesterday</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pipeline Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(stats.pipelineValue)}</p>
-              <p className="text-sm mt-1 text-green-600 dark:text-green-400">+12% from last month</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Total Clients</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalClients}</p>
+        {stats.totalClients > 0 ? (
+          <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">
+            {stats.totalClients === 1 ? 'Your first client' : 'Growing your pipeline'}
+          </p>
+        ) : (
+          <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">Add your first client</p>
+        )}
       </div>
+      <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+        <Users className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  </div>
+
+  <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Active Opportunities</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.activeOpportunities}</p>
+        {stats.activeOpportunities > 0 ? (
+          <p className="text-sm mt-1 text-green-600 dark:text-green-400">
+            {stats.activeOpportunities === 1 ? '1 hot lead' : `${stats.activeOpportunities} hot leads`}
+          </p>
+        ) : (
+          <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">No active opportunities yet</p>
+        )}
+      </div>
+      <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
+        <Target className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  </div>
+
+  <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pipeline Value</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(stats.pipelineValue)}</p>
+        {stats.pipelineValue > 0 ? (
+          <p className="text-sm mt-1 text-green-600 dark:text-green-400">
+            {stats.totalClients > 0 
+              ? `Avg ${formatCurrency(stats.pipelineValue / stats.totalClients)} per client`
+              : 'Building your pipeline'
+            }
+          </p>
+        ) : (
+          <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">Add loan amounts to track</p>
+        )}
+      </div>
+      <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+        <DollarSign className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Quick Actions with Glassmorphism - Now in Center */}
       <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6">
