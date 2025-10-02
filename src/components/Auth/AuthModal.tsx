@@ -1,21 +1,29 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 import { Mail, Lock, User, Building } from 'lucide-react'
 
 interface AuthModalProps {
   isOpen: boolean
   onClose: () => void
+  defaultMode?: 'signin' | 'signup'
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 'signin' }) => {
   const { signIn, signUp } = useAuth()
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(defaultMode === 'signup')
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+
+  // Update mode when defaultMode changes
+  useEffect(() => {
+    setIsSignUp(defaultMode === 'signup')
+  }, [defaultMode, isOpen])
   
   const passwordRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
@@ -103,6 +111,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp)
+    setIsForgotPassword(false)
+    resetForm()
+  }
+
+  const showForgotPassword = () => {
+    setIsForgotPassword(true)
+    setIsSignUp(false)
+    resetForm()
+  }
+
+  const backToSignIn = () => {
+    setIsForgotPassword(false)
     resetForm()
   }
 
@@ -110,18 +130,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     <Modal isOpen={isOpen} onClose={onClose} size="md">
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {isSignUp ? 'Create Your Account' : 'Welcome Back'}
+          {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Your Account' : 'Welcome Back'}
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
-          {isSignUp 
-            ? 'Start your free trial of Rate Monitor Pro' 
-            : 'Sign in to your Rate Monitor Pro account'
+          {isForgotPassword 
+            ? 'Enter your email to receive a password reset link'
+            : isSignUp 
+              ? 'Start your free trial of Rate Monitor Pro' 
+              : 'Sign in to your Rate Monitor Pro account'
           }
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isSignUp && (
+        {isSignUp && !isForgotPassword && (
           <>
             <Input
               label="Full Name"
@@ -148,35 +170,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           required
         />
 
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Password
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Lock className="w-4 h-4 text-gray-400" />
+        {!isForgotPassword && (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Password
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="w-4 h-4 text-gray-400" />
+              </div>
+              <input
+                ref={passwordRef}
+                type="password"
+                required
+                minLength={6}
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                className="
+                  block w-full rounded-xl border-gray-300 dark:border-gray-600 
+                  bg-white dark:bg-gray-800 
+                  text-gray-900 dark:text-gray-100
+                  shadow-sm focus:border-blue-500 focus:ring-blue-500
+                  transition-colors duration-200
+                  pl-10 pr-4 py-2.5
+                "
+                placeholder="Enter your password"
+              />
             </div>
-            <input
-              ref={passwordRef}
-              type="password"
-              required
-              minLength={6}
-              autoComplete={isSignUp ? "new-password" : "current-password"}
-              className="
-                block w-full rounded-xl border-gray-300 dark:border-gray-600 
-                bg-white dark:bg-gray-800 
-                text-gray-900 dark:text-gray-100
-                shadow-sm focus:border-blue-500 focus:ring-blue-500
-                transition-colors duration-200
-                pl-10 pr-4 py-2.5
-              "
-              placeholder="Enter your password"
-            />
+            <p className="text-xs text-gray-500">
+              Password must be at least 6 characters long
+            </p>
           </div>
-          <p className="text-xs text-gray-500">
-            Password must be at least 6 characters long
-          </p>
-        </div>
+        )}
+
+        {!isSignUp && !isForgotPassword && (
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={showForgotPassword}
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
 
         {successMessage && (
           <div className="text-sm p-3 rounded-lg bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
@@ -196,21 +232,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           className="w-full"
           disabled={loading || !!successMessage}
         >
-          {isSignUp ? 'Create Account' : 'Sign In'}
+          {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Create Account' : 'Sign In'}
         </Button>
       </form>
 
       <div className="mt-6 text-center">
-        <button
-          onClick={toggleMode}
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
-          disabled={loading || !!successMessage}
-        >
-          {isSignUp 
-            ? 'Already have an account? Sign In' 
-            : 'Need an account? Sign Up'
-          }
-        </button>
+        {isForgotPassword ? (
+          <button
+            onClick={backToSignIn}
+            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+            disabled={loading || !!successMessage}
+          >
+            Back to Sign In
+          </button>
+        ) : (
+          <button
+            onClick={toggleMode}
+            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"
+            disabled={loading || !!successMessage}
+          >
+            {isSignUp 
+              ? 'Already have an account? Sign In' 
+              : 'Need an account? Sign Up'
+            }
+          </button>
+        )}
       </div>
 
       {isSignUp && !successMessage && (

@@ -78,7 +78,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({ onLogin, onGetStarted })
             >
               Login
             </Button>
-            <Button onClick={onGetStarted}>
+            <Button onClick={() => onGetStarted(true)}>
               Get Started
             </Button>
           </div>
@@ -111,7 +111,7 @@ export const LandingNav: React.FC<LandingNavProps> = ({ onLogin, onGetStarted })
                 <Button variant="outline" onClick={onLogin} className="w-full">
                   Login
                 </Button>
-                <Button onClick={onGetStarted} className="w-full">
+                <Button onClick={() => onGetStarted(true)} className="w-full">
                   Get Started
                 </Button>
               </div>

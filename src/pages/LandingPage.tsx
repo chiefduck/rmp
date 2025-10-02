@@ -131,7 +131,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
             <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
               <Button 
                 size="lg" 
-                onClick={onGetStarted}
+                onClick={() => onGetStarted(true)}
                 className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
               >
                 Start Free Trial
@@ -148,7 +148,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
             </div>
             
             <p className="text-gray-400 mt-6">
-              14-day free trial • No credit card required • Cancel anytime
+              14-day free trial • Cancel anytime
             </p>
             
             {/* Social Proof */}
@@ -383,7 +383,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
           </p>
           <Button 
             size="lg" 
-            onClick={onGetStarted}
+            onClick={() => onGetStarted(true)}
             className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
           >
             Get Started Today

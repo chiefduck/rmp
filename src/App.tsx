@@ -58,6 +58,12 @@ const Landing: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
 
 const AppContent: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin')
+
+  const openAuthModal = (mode: 'signin' | 'signup' = 'signin') => {
+    setAuthModalMode(mode)
+    setShowAuthModal(true)
+  }
 
   return (
     <Router>
@@ -65,7 +71,12 @@ const AppContent: React.FC = () => {
         {/* Public Landing Page */}
         <Route 
           path="/" 
-          element={<Landing onShowAuth={() => setShowAuthModal(true)} />}
+          element={
+            <Landing 
+              onShowAuth={() => openAuthModal('signin')} 
+              onGetStarted={() => openAuthModal('signup')}
+            />
+          }
         />
         
         {/* Auth Callback */}
@@ -86,7 +97,11 @@ const AppContent: React.FC = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       
-      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        defaultMode={authModalMode}
+      />
     </Router>
   )
 }
