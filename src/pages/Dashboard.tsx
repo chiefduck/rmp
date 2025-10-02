@@ -1,4 +1,3 @@
-// src/pages/Dashboard.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, TrendingDown, Phone, Mail, DollarSign, Target, RefreshCw, TrendingUp } from 'lucide-react';
@@ -8,7 +7,6 @@ import { RateService } from '../lib/rateService';
 import { RateChart } from '../components/Dashboard/RateChart';
 import { RecentActivity } from '../components/Dashboard/RecentActivity';
 
-// Interfaces for our data structures
 interface MarketData {
   current_30yr?: number;
   current_15yr?: number;
@@ -88,8 +86,8 @@ export const Dashboard: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
-  const getChangeColor = (change: number | null) => !change ? 'text-gray-500' : change > 0 ? 'text-red-500' : 'text-green-500';
-  const getChangeIcon = (change: number | null) => !change ? null : change > 0 ? TrendingUp : TrendingDown;
+  const getChangeColor = (change: number | null | undefined) => !change ? 'text-gray-500' : change > 0 ? 'text-red-500' : 'text-green-500';
+  const getChangeIcon = (change: number | null | undefined) => !change ? null : change > 0 ? TrendingUp : TrendingDown;
 
   const rateWidgets = useMemo(() => [
     { label: '30yr', current: marketData.current_30yr, change: marketData.change_1day_30yr, gradient: 'from-blue-500 to-blue-600' },
@@ -105,21 +103,30 @@ export const Dashboard: React.FC = () => {
       value: stats.totalClients, 
       icon: Users, 
       gradient: 'from-blue-600 to-indigo-600',
-      description: stats.totalClients > 0 ? (stats.totalClients === 1 ? 'Your first client' : 'Growing your pipeline') : 'Add your first client'
+      description: stats.totalClients > 0 
+        ? (stats.totalClients === 1 ? 'Your first client' : 'Growing your pipeline') 
+        : 'Add your first client',
+      descriptionColor: 'text-gray-500 dark:text-gray-400'
     },
     { 
       title: 'Active Opportunities', 
       value: stats.activeOpportunities, 
       icon: Target,
       gradient: 'from-green-600 to-emerald-600',
-      description: stats.activeOpportunities > 0 ? <span className="text-green-600 dark:text-green-400">{stats.activeOpportunities === 1 ? '1 hot lead' : `${stats.activeOpportunities} hot leads`}</span> : 'No active opportunities yet'
+      description: stats.activeOpportunities > 0 
+        ? (stats.activeOpportunities === 1 ? '1 hot lead' : `${stats.activeOpportunities} hot leads`)
+        : 'No active opportunities yet',
+      descriptionColor: stats.activeOpportunities > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
     },
     { 
       title: 'Pipeline Value', 
       value: formatCurrency(stats.pipelineValue), 
       icon: DollarSign,
       gradient: 'from-purple-600 to-pink-600',
-      description: stats.pipelineValue > 0 ? (stats.totalClients > 0 ? `Avg ${formatCurrency(stats.pipelineValue / stats.totalClients)} per client` : 'Building your pipeline') : 'Add loan amounts to track'
+      description: stats.pipelineValue > 0 
+        ? (stats.totalClients > 0 ? `Avg ${formatCurrency(stats.pipelineValue / stats.totalClients)} per client` : 'Building your pipeline')
+        : 'Add loan amounts to track',
+      descriptionColor: stats.pipelineValue > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
     }
   ], [stats]);
 
@@ -152,8 +159,9 @@ export const Dashboard: React.FC = () => {
       {/* Real-Time Rate Widgets */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {rateWidgets.map((rate) => {
-          // ✅ FIXED: Check if rate.change is a non-zero number before rendering the change indicator
           const ChangeIcon = getChangeIcon(rate.change);
+          const hasValidChange = rate.change !== null && rate.change !== undefined && rate.change !== 0;
+          
           return (
             <div key={rate.label} className="relative group">
               <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
@@ -162,12 +170,13 @@ export const Dashboard: React.FC = () => {
                 </div>
                 <h3 className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{rate.label}</h3>
                 <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-2">
-                  <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100">{rate.current ? `${rate.current.toFixed(3)}%` : '-.---'}</span>
-                  {/* This conditional now correctly handles zero and null/undefined */}
-                  {ChangeIcon && rate.change && (
+                  <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {rate.current ? `${rate.current.toFixed(3)}%` : '-.---'}
+                  </span>
+                  {hasValidChange && ChangeIcon && (
                     <div className={`flex items-center gap-1 ${getChangeColor(rate.change)}`}>
                       <ChangeIcon className="w-3 h-3" />
-                      <span className="text-xs font-medium">{Math.abs(rate.change).toFixed(3)}</span>
+                      <span className="text-xs font-medium">{Math.abs(rate.change!).toFixed(3)}</span>
                     </div>
                   )}
                 </div>
@@ -185,7 +194,7 @@ export const Dashboard: React.FC = () => {
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{card.title}</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{card.value}</p>
-                <p className="text-sm mt-1 text-gray-500 dark:text-gray-400">{card.description}</p>
+                <p className={`text-sm mt-1 ${card.descriptionColor}`}>{card.description}</p>
               </div>
               <div className={`w-12 h-12 bg-gradient-to-r ${card.gradient} rounded-xl flex items-center justify-center flex-shrink-0`}>
                 <card.icon className="w-6 h-6 text-white" />
