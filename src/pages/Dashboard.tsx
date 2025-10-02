@@ -53,9 +53,9 @@ export const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     if (!user) return
-
+  
     try {
-      // Fetch client stats
+      // Fetch client stats - EXCLUDING deleted clients
       const [
         { count: clientCount },
         { count: opportunityCount },
@@ -63,22 +63,39 @@ export const Dashboard: React.FC = () => {
         currentRates,
         historyData
       ] = await Promise.all([
-        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', user.id).in('current_stage', ['qualified', 'application']),
-        supabase.from('clients').select('loan_amount').eq('user_id', user.id).not('loan_amount', 'is', null),
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('deleted_at', null), // ← ADDED: Exclude deleted clients
+        
+        supabase
+          .from('clients')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('deleted_at', null) // ← ADDED: Exclude deleted clients
+          .in('current_stage', ['qualified', 'application']),
+        
+        supabase
+          .from('clients')
+          .select('loan_amount')
+          .eq('user_id', user.id)
+          .is('deleted_at', null) // ← ADDED: Exclude deleted clients
+          .not('loan_amount', 'is', null),
+        
         RateService.getCurrentRates(),
         RateService.getRateHistory(30, 'conventional', 30)
       ])
-
+  
       const pipelineValue = pipelineData?.reduce((sum, client) => sum + (client.loan_amount || 0), 0) || 0
-
+  
       setStats(prev => ({
         ...prev,
         totalClients: clientCount || 0,
         activeOpportunities: opportunityCount || 0,
         pipelineValue
       }))
-
+  
       setMarketData({
         current_30yr: currentRates['30yr_conventional']?.rate_value || null,
         current_15yr: currentRates['15yr_conventional']?.rate_value || null,
@@ -90,7 +107,7 @@ export const Dashboard: React.FC = () => {
         change_1month_30yr: currentRates['30yr_conventional']?.change_1_month || null,
         last_updated: currentRates['30yr_conventional']?.rate_date || null
       })
-
+  
       // Convert RateTrend[] to the format expected by RateChart
       const chartData = historyData?.map(trend => ({
         date: trend.date,

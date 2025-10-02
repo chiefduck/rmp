@@ -72,6 +72,7 @@ export interface Mortgage {
   status: 'pending' | 'approved' | 'denied' | 'closed'
   application_date: string
   closing_date?: string
+  refi_eligible_date?: string  // ← ADDED
   created_at: string
   updated_at: string
 }
@@ -105,6 +106,7 @@ export interface AIInteraction {
   context?: any
   created_at: string
 }
+
 export interface EmailPreferences {
   id: string
   user_id: string
@@ -116,6 +118,7 @@ export interface EmailPreferences {
   created_at: string
   updated_at: string
 }
+
 export interface NotificationPreferences {
   id: string
   user_id: string

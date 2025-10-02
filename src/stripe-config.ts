@@ -12,7 +12,7 @@ export interface Product {
 
 export const products: Product[] = [
   {
-    priceId: 'price_1SBN3EEsyVlivUjUSmGaeyvt', // Your real test price ID
+    priceId: 'price_1Qu4FhEsyVlivUjUdAVTbpv4', // Your real test price ID
     name: 'Rate Monitor Pro',
     description: 'Professional mortgage rate monitoring for brokers. Real-time rate tracking, automated client notifications, CRM integration, and portfolio management dashboard.',
     price: 97.00,

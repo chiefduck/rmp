@@ -1,5 +1,5 @@
 import React from 'react'
-import { Phone, Mail, Edit, Trash2, TrendingUp } from 'lucide-react'
+import { Phone, Mail, Edit, Trash2, TrendingUp, Calendar, AlertCircle } from 'lucide-react'
 import { TargetProgressBar } from './TargetProgressBar'
 
 interface Mortgage {
@@ -12,6 +12,7 @@ interface Mortgage {
   start_date: string
   lender: string
   notes?: string
+  refi_eligible_date?: string
   created_at: string
   updated_at: string
   client_name?: string
@@ -34,7 +35,6 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
   onViewDetails, 
   onDelete 
 }) => {
-  // CORRECT mortgage payment calculation using amortization formula
   const calculateMonthlyPayment = (principal: number, annualRate: number, termYears: number) => {
     const monthlyRate = annualRate / 100 / 12
     const numPayments = termYears * 12
@@ -54,14 +54,47 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
   }
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only trigger details if not clicking on action buttons
     const target = e.target as HTMLElement
     if (!target.closest('button')) {
       onViewDetails?.(mortgage)
     }
   }
 
-  // Calculate CORRECT savings using proper mortgage formula
+  // Calculate refi eligibility status
+  const getRefiStatus = () => {
+    if (!mortgage.refi_eligible_date) return null
+    
+    const today = new Date()
+    const refiDate = new Date(mortgage.refi_eligible_date)
+    const daysUntilEligible = Math.ceil((refiDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    
+    if (daysUntilEligible <= 0) {
+      return {
+        status: 'eligible',
+        text: 'Refi Eligible Now',
+        color: 'bg-green-500 text-white',
+        borderColor: 'border-green-500',
+        glowColor: 'shadow-green-500/50'
+      }
+    } else if (daysUntilEligible <= 30) {
+      return {
+        status: 'soon',
+        text: `Eligible in ${daysUntilEligible} days`,
+        color: 'bg-yellow-500 text-white',
+        borderColor: 'border-yellow-500',
+        glowColor: 'shadow-yellow-500/50'
+      }
+    } else {
+      return {
+        status: 'waiting',
+        text: `Eligible ${new Date(mortgage.refi_eligible_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        color: 'bg-gray-500 text-white',
+        borderColor: 'border-gray-500',
+        glowColor: ''
+      }
+    }
+  }
+
   const currentMonthlyPayment = calculateMonthlyPayment(mortgage.loan_amount, mortgage.current_rate, mortgage.term_years)
   const targetMonthlyPayment = calculateMonthlyPayment(mortgage.loan_amount, mortgage.target_rate, mortgage.term_years)
   const actualSavings = Math.max(0, currentMonthlyPayment - targetMonthlyPayment)
@@ -74,6 +107,7 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
   }
 
   const opportunityStatus = getOpportunityStatus(actualSavings)
+  const refiStatus = getRefiStatus()
 
   return (
     <div 
@@ -85,7 +119,7 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
       <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-xl transform translate-x-16 -translate-y-16 group-hover:scale-110 transition-transform duration-500" />
       
       <div className="relative z-10">
-        {/* Header */}
+        {/* Header with Client Name */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-green-500/25 transition-all duration-300">
@@ -136,8 +170,67 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
           </div>
         </div>
 
+        {/* Refi Eligibility Badge */}
+        {refiStatus && (
+          <div className="mb-4">
+            <div className={`
+              relative overflow-hidden rounded-xl p-3 border backdrop-blur-sm
+              ${refiStatus.status === 'eligible' 
+                ? 'bg-green-900/30 border-green-800/50' 
+                : refiStatus.status === 'soon'
+                ? 'bg-yellow-900/30 border-yellow-800/50'
+                : 'bg-purple-900/30 border-purple-800/50'
+              }
+            `}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {refiStatus.status === 'eligible' && (
+                    <AlertCircle className="w-4 h-4 text-green-400 animate-pulse" />
+                  )}
+                  {refiStatus.status === 'soon' && (
+                    <Calendar className="w-4 h-4 text-yellow-400" />
+                  )}
+                  {refiStatus.status === 'waiting' && (
+                    <Calendar className="w-4 h-4 text-purple-400" />
+                  )}
+                  <span className={`text-xs font-medium ${
+                    refiStatus.status === 'eligible' 
+                      ? 'text-green-400' 
+                      : refiStatus.status === 'soon'
+                      ? 'text-yellow-400'
+                      : 'text-purple-400'
+                  }`}>
+                    Refi Eligibility
+                  </span>
+                </div>
+                <span className={`text-sm font-semibold ${
+                  refiStatus.status === 'eligible' 
+                    ? 'text-green-300' 
+                    : refiStatus.status === 'soon'
+                    ? 'text-yellow-300'
+                    : 'text-purple-300'
+                }`}>
+                  {refiStatus.text}
+                </span>
+              </div>
+              {refiStatus.status === 'eligible' && (
+                <div className="absolute inset-0 bg-green-500/5 animate-pulse" />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Rate Details - Premium Cards */}
         <div className="space-y-3 mb-4">
+          <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl p-3 border border-gray-600/30 group-hover:bg-gray-700/70 transition-colors">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-400">Closing Date</span>
+              <span className="text-sm font-semibold text-gray-100">
+                {new Date(mortgage.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </span>
+            </div>
+          </div>
+
           <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl p-3 border border-gray-600/30 group-hover:bg-gray-700/70 transition-colors">
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-400">Current Rate</span>
@@ -165,13 +258,14 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
             </div>
           </div>
         </div>
+
         {/* Target Progress */}
-<TargetProgressBar
-  currentRate={mortgage.current_rate}
-  targetRate={mortgage.target_rate}
-  marketRate={mortgage.market_rate || 6.5}
-  className="mb-4"
-/>
+        <TargetProgressBar
+          currentRate={mortgage.current_rate}
+          targetRate={mortgage.target_rate}
+          marketRate={mortgage.market_rate || 6.5}
+          className="mb-4"
+        />
 
         {/* Contact Actions - Premium Style */}
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -207,7 +301,7 @@ export const RateMonitorCard: React.FC<RateMonitorCardProps> = ({
           </button>
         </div>
 
-        {/* Savings Display - FIXED CALCULATION */}
+        {/* Savings Display */}
         {actualSavings > 0 && (
           <div className="pt-3 border-t border-gray-600/50">
             <div className="bg-gradient-to-r from-green-900/20 to-emerald-900/20 rounded-xl p-3 border border-green-800/30 backdrop-blur-sm">

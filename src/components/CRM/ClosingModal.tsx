@@ -23,6 +23,7 @@ export const ClosingModal: React.FC<ClosingModalProps> = ({
     current_rate: client?.target_rate || '',
     target_rate: '',
     loan_amount: client?.loan_amount || '',
+    loan_type: client?.loan_type || 'conventional',
     term_years: 30,
     start_date: new Date().toISOString().split('T')[0],
     lender: '',
@@ -30,17 +31,36 @@ export const ClosingModal: React.FC<ClosingModalProps> = ({
   })
   const [loading, setLoading] = useState(false)
 
+  // Calculate refi eligibility date based on loan type
+  const calculateRefiDate = (startDate: string, loanType: string) => {
+    const date = new Date(startDate)
+    const type = loanType.toLowerCase()
+    
+    // FHA/VA loans: 210 days minimum
+    if (type.includes('fha') || type.includes('va')) {
+      date.setDate(date.getDate() + 210)
+    } else {
+      // Standard loans: 6 months minimum
+      date.setMonth(date.getMonth() + 6)
+    }
+    
+    return date.toISOString().split('T')[0]
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     
     try {
+      const refiEligibleDate = calculateRefiDate(formData.start_date, formData.loan_type)
+      
       await onConfirm({
         ...formData,
         current_rate: parseFloat(formData.current_rate.toString()),
         target_rate: parseFloat(formData.target_rate.toString()) || parseFloat(formData.current_rate.toString()),
         loan_amount: parseFloat(formData.loan_amount.toString()),
-        term_years: parseInt(formData.term_years.toString())
+        term_years: parseInt(formData.term_years.toString()),
+        refi_eligible_date: refiEligibleDate
       })
     } catch (error) {
       console.error('Error closing loan:', error)
@@ -78,6 +98,8 @@ export const ClosingModal: React.FC<ClosingModalProps> = ({
   if (!client) return null
 
   const clientName = `${client.first_name} ${client.last_name}`.trim()
+  const refiDate = calculateRefiDate(formData.start_date, formData.loan_type)
+  const isRefiSoon = formData.loan_type.toLowerCase().includes('fha') || formData.loan_type.toLowerCase().includes('va')
 
   return (
     <Modal
@@ -162,6 +184,49 @@ export const ClosingModal: React.FC<ClosingModalProps> = ({
             />
           </div>
 
+          {/* Refi Eligibility Notice */}
+          <div className={`rounded-xl p-4 border ${
+            isRefiSoon 
+              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' 
+              : 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
+          }`}>
+            <div className="flex items-start space-x-3">
+              <Calendar className={`w-5 h-5 mt-0.5 ${
+                isRefiSoon ? 'text-blue-500' : 'text-purple-500'
+              }`} />
+              <div>
+                <h4 className={`font-medium mb-1 ${
+                  isRefiSoon 
+                    ? 'text-blue-900 dark:text-blue-100' 
+                    : 'text-purple-900 dark:text-purple-100'
+                }`}>
+                  Refi Eligibility Date
+                </h4>
+                <p className={`text-sm mb-2 ${
+                  isRefiSoon 
+                    ? 'text-blue-700 dark:text-blue-300' 
+                    : 'text-purple-700 dark:text-purple-300'
+                }`}>
+                  <strong>{new Date(refiDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</strong>
+                </p>
+                <p className={`text-xs ${
+                  isRefiSoon 
+                    ? 'text-blue-600 dark:text-blue-400' 
+                    : 'text-purple-600 dark:text-purple-400'
+                }`}>
+                  {isRefiSoon 
+                    ? '📅 FHA/VA loans require 210 days minimum before refinancing' 
+                    : '📅 Standard loans require 6 months minimum before refinancing'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -186,7 +251,8 @@ export const ClosingModal: React.FC<ClosingModalProps> = ({
                 </h4>
                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                   <li>• Client moves to <strong>Rate Monitor</strong> section</li>
-                  <li>• You'll be notified of future refinancing opportunities</li>
+                  <li>• You'll be notified 30 days before refi eligibility</li>
+                  <li>• You'll get alerts when rates drop below target</li>
                   <li>• All client history and notes are preserved</li>
                 </ul>
               </div>

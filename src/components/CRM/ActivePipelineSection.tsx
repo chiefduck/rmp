@@ -9,6 +9,10 @@ interface ActivePipelineSectionProps {
   onViewDetails: (client: Client) => void
   onDeleteClient: (client: Client) => void
   onUpdateStage: (clientId: string, newStage: string, previousStage: string) => void
+  onArchiveClient?: (client: Client) => void
+  onRestoreClient?: (client: Client) => void
+  showArchiveButton?: boolean
+  showRestoreButton?: boolean
 }
 
 export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
@@ -16,7 +20,11 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
   onEditClient,
   onViewDetails,
   onDeleteClient,
-  onUpdateStage
+  onUpdateStage,
+  onArchiveClient,
+  onRestoreClient,
+  showArchiveButton = false,
+  showRestoreButton = false
 }) => {
   const [draggedClient, setDraggedClient] = useState<Client | null>(null)
 
@@ -55,7 +63,9 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
         <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
           <Users className="w-5 h-5 text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-100">Active Pipeline</h2>
+        <h2 className="text-2xl font-bold text-gray-100">
+          {showRestoreButton ? 'Archived Clients' : 'Active Pipeline'}
+        </h2>
         <div className="flex-1 h-px bg-gradient-to-r from-blue-500/30 to-transparent" />
       </div>
       
@@ -69,6 +79,10 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
             onEditClient={onEditClient}
             onViewDetails={onViewDetails}
             onDeleteClient={onDeleteClient}
+            onArchiveClient={onArchiveClient}
+            onRestoreClient={onRestoreClient}
+            showArchiveButton={showArchiveButton}
+            showRestoreButton={showRestoreButton}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}

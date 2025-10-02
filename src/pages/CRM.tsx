@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Archive, CheckCircle, Users } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { PipelineStats } from '../components/CRM/PipelineStats'
 import { RateMonitorSection } from '../components/CRM/RateMonitorSection'
@@ -15,7 +15,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { deleteClient } from '../utils/clientUtils'
 import { RateService } from '../lib/rateService'
 
-// Mortgage interface
 interface Mortgage {
   id: string
   client_id: string
@@ -26,6 +25,7 @@ interface Mortgage {
   start_date: string
   lender: string
   notes?: string
+  refi_eligible_date?: string
   created_at: string
   updated_at: string
   client_name?: string
@@ -35,11 +35,16 @@ interface Mortgage {
   savings_potential?: number
 }
 
+type ClientFilter = 'active' | 'closed' | 'archived' | 'all'
+
 export const CRM: React.FC = () => {
   const { user } = useAuth()
   const [activeClients, setActiveClients] = useState<Client[]>([])
+  const [closedClients, setClosedClients] = useState<Client[]>([])
+  const [archivedClients, setArchivedClients] = useState<Client[]>([])
   const [closedMortgages, setClosedMortgages] = useState<Mortgage[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeFilter, setActiveFilter] = useState<ClientFilter>('active')
   
   // Client modal states
   const [showAddModal, setShowAddModal] = useState(false)
@@ -62,16 +67,38 @@ export const CRM: React.FC = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      // Fetch active clients (not closed, not deleted)
-      const { data: clientsData, error: clientsError } = await supabase
+      // Fetch active clients (status='active', not deleted)
+      const { data: activeData, error: activeError } = await supabase
         .from('clients')
         .select('*')
         .eq('user_id', user?.id)
-        .neq('current_stage', 'closed')
+        .eq('status', 'active')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
-      if (clientsError) throw clientsError
+      if (activeError) throw activeError
+
+      // Fetch closed clients (status='closed', not deleted)
+      const { data: closedData, error: closedError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'closed')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (closedError) throw closedError
+
+      // Fetch archived clients (status='archived', not deleted)
+      const { data: archivedData, error: archivedError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'archived')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (archivedError) throw archivedError
 
       // Fetch closed mortgages with client info
       const { data: mortgagesData, error: mortgagesError } = await supabase
@@ -95,33 +122,18 @@ export const CRM: React.FC = () => {
       } else {
         const transformedMortgages = await Promise.all(
           mortgagesData?.map(async mortgage => {
-            // Get loan type from mortgage or client
             const loanTypeField = mortgage.loan_type || mortgage.clients?.loan_type || '30yr'
             
-            // Map all 5 main types
-            let loanType = 'conventional' // default
+            let loanType = 'conventional'
             const typeText = loanTypeField.toLowerCase()
             
             if (typeText.includes('fha')) loanType = 'fha'
             else if (typeText.includes('va')) loanType = 'va'
             else if (typeText.includes('jumbo')) loanType = 'jumbo'
             else if (typeText.includes('arm')) loanType = 'arm'
-            // else stays 'conventional'
             
-            // Get term years
             const termYears = mortgage.term_years || 30
-            
             const marketRate = await RateService.getMarketRate(loanType, termYears)
-            
-            // Enhanced debug
-            console.log('=== MAPPING DEBUG ===')
-            console.log('Mortgage loan_type:', mortgage.loan_type)
-            console.log('Client loan_type:', mortgage.clients?.loan_type)
-            console.log('Final loanTypeField:', loanTypeField)
-            console.log('Mapped loanType:', loanType)
-            console.log('Term years:', termYears)
-            console.log('Market rate returned:', marketRate)
-            console.log('=====================')
             
             return {
               ...mortgage,
@@ -137,7 +149,9 @@ export const CRM: React.FC = () => {
         setClosedMortgages(transformedMortgages)
       }
 
-      setActiveClients(clientsData || [])
+      setActiveClients(activeData || [])
+      setClosedClients(closedData || [])
+      setArchivedClients(archivedData || [])
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -152,19 +166,75 @@ export const CRM: React.FC = () => {
     return Math.round(currentPayment - newPayment)
   }
 
-  // Handle stage updates with special case for "closing"
+  // Archive a client
+  const handleArchiveClient = async (client: Client) => {
+    const clientName = `${client.first_name} ${client.last_name}`.trim()
+    
+    const confirmed = window.confirm(
+      `Archive ${clientName}?\n\nArchived clients are removed from active pipeline and rate monitoring, but you can still view their history.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ 
+          status: 'archived',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', client.id)
+
+      if (error) throw error
+
+      await fetchData()
+      console.log(`${clientName} has been archived`)
+    } catch (error) {
+      console.error('Error archiving client:', error)
+      alert('Error archiving client. Please try again.')
+    }
+  }
+
+  // Restore archived client to active
+  const handleRestoreClient = async (client: Client) => {
+    const clientName = `${client.first_name} ${client.last_name}`.trim()
+    
+    const confirmed = window.confirm(
+      `Restore ${clientName} to active pipeline?`
+    )
+
+    if (!confirmed) return
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ 
+          status: 'active',
+          current_stage: 'prospect', // Reset to prospect stage
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', client.id)
+
+      if (error) throw error
+
+      await fetchData()
+      console.log(`${clientName} has been restored to active`)
+    } catch (error) {
+      console.error('Error restoring client:', error)
+      alert('Error restoring client. Please try again.')
+    }
+  }
+
   const updateClientStage = async (clientId: string, newStage: string, previousStage: string) => {
-    // If moving to "closing", show closing modal instead
     if (newStage === 'closing') {
       const client = activeClients.find(c => c.id === clientId)
       if (client) {
         setSelectedClient(client)
         setShowClosingModal(true)
-        return // Don't update stage yet, wait for closing modal
+        return
       }
     }
 
-    // Update local state immediately for better UX
     setActiveClients(prev => prev.map(client => 
       client.id === clientId 
         ? { ...client, current_stage: newStage as any }
@@ -172,7 +242,6 @@ export const CRM: React.FC = () => {
     ))
     
     try {
-      // Update database
       const { error } = await supabase
         .from('clients')
         .update({ 
@@ -183,7 +252,6 @@ export const CRM: React.FC = () => {
 
       if (error) throw error
 
-      // Add stage change note
       await supabase
         .from('client_notes')
         .insert({
@@ -197,20 +265,19 @@ export const CRM: React.FC = () => {
 
     } catch (error) {
       console.error('Error updating stage:', error)
-      // Revert local state on error
       fetchData()
     }
   }
 
-  // Handle client closing and mortgage creation
   const handleClientClosing = async (mortgageData: any) => {
     if (!selectedClient) return
 
     try {
-      // First, update client to closed status
+      // Update client to closed status
       const { error: clientError } = await supabase
         .from('clients')
         .update({ 
+          status: 'closed',
           current_stage: 'closed',
           updated_at: new Date().toISOString()
         })
@@ -218,7 +285,7 @@ export const CRM: React.FC = () => {
 
       if (clientError) throw clientError
 
-      // Create mortgage record
+      // Create mortgage record with refi_eligible_date
       const { error: mortgageError } = await supabase
         .from('mortgages')
         .insert({
@@ -229,27 +296,24 @@ export const CRM: React.FC = () => {
           term_years: mortgageData.term_years,
           start_date: mortgageData.start_date,
           lender: mortgageData.lender,
-          notes: mortgageData.notes
+          notes: mortgageData.notes,
+          refi_eligible_date: mortgageData.refi_eligible_date
         })
 
       if (mortgageError) throw mortgageError
 
-      // Add closing note
       await supabase
         .from('client_notes')
         .insert({
           client_id: selectedClient.id,
           user_id: user?.id,
-          note: `Loan closed with ${mortgageData.lender} at ${mortgageData.current_rate}%`,
+          note: `Loan closed with ${mortgageData.lender} at ${mortgageData.current_rate}%. Refi eligible: ${mortgageData.refi_eligible_date}`,
           note_type: 'stage_change',
           previous_stage: selectedClient.current_stage,
           new_stage: 'closed'
         })
 
-      // Refresh data to move client to rate monitor
       await fetchData()
-      
-      // Close modal
       setShowClosingModal(false)
       setSelectedClient(null)
 
@@ -259,7 +323,6 @@ export const CRM: React.FC = () => {
     }
   }
 
-  // Delete client handler
   const handleDeleteClient = async (client: Client) => {
     const clientName = `${client.first_name} ${client.last_name}`.trim()
     
@@ -273,7 +336,11 @@ export const CRM: React.FC = () => {
       const success = await deleteClient(client.id)
       
       if (success) {
+        // Remove from whichever list they're in
         setActiveClients(prev => prev.filter(c => c.id !== client.id))
+        setClosedClients(prev => prev.filter(c => c.id !== client.id))
+        setArchivedClients(prev => prev.filter(c => c.id !== client.id))
+        
         console.log(`${clientName} has been deleted successfully`)
         
         if (selectedClient?.id === client.id) {
@@ -290,7 +357,6 @@ export const CRM: React.FC = () => {
     }
   }
 
-  // Mortgage handlers - NOW FULLY FUNCTIONAL
   const handleEditMortgage = (mortgage: Mortgage) => {
     setSelectedMortgage(mortgage)
     setShowEditMortgageModal(true)
@@ -316,12 +382,10 @@ export const CRM: React.FC = () => {
       
       if (error) throw error
       
-      // Remove from local state immediately for better UX
       setClosedMortgages(prev => prev.filter(m => m.id !== mortgage.id))
       
       console.log(`${mortgage.client_name}'s mortgage has been deleted successfully`)
       
-      // Close modals if this mortgage is selected
       if (selectedMortgage?.id === mortgage.id) {
         setSelectedMortgage(null)
         setShowEditMortgageModal(false)
@@ -331,7 +395,6 @@ export const CRM: React.FC = () => {
     } catch (error) {
       console.error('Error deleting mortgage:', error)
       alert('Error deleting mortgage. Please try again.')
-      // Refresh data on error to sync state
       fetchData()
     }
   }
@@ -359,6 +422,22 @@ export const CRM: React.FC = () => {
   const handleEditFromDetails = () => {
     setShowDetailsModal(false)
     setShowEditModal(true)
+  }
+
+  // Get filtered clients based on active tab
+  const getFilteredClients = () => {
+    switch (activeFilter) {
+      case 'active':
+        return activeClients
+      case 'closed':
+        return closedClients
+      case 'archived':
+        return archivedClients
+      case 'all':
+        return [...activeClients, ...closedClients, ...archivedClients]
+      default:
+        return activeClients
+    }
   }
 
   if (loading) {
@@ -396,24 +475,82 @@ export const CRM: React.FC = () => {
         closedMortgages={closedMortgages} 
       />
 
-      {/* Rate Monitor Section */}
-      <RateMonitorSection 
-        mortgages={closedMortgages}
-        onEditMortgage={handleEditMortgage}
-        onViewMortgageDetails={handleViewMortgageDetails}
-        onDeleteMortgage={handleDeleteMortgage}
-      />
+      {/* Rate Monitor Section - Only show for active filter */}
+      {activeFilter === 'active' && (
+        <RateMonitorSection 
+          mortgages={closedMortgages}
+          onEditMortgage={handleEditMortgage}
+          onViewMortgageDetails={handleViewMortgageDetails}
+          onDeleteMortgage={handleDeleteMortgage}
+        />
+      )}
 
-      {/* Active Pipeline Section */}
-      <ActivePipelineSection 
-        clients={activeClients}
-        onEditClient={handleEditClient}
-        onViewDetails={handleViewDetails}
-        onDeleteClient={handleDeleteClient}
-        onUpdateStage={updateClientStage}
-      />
+      {/* Filter Tabs */}
+      <div className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => setActiveFilter('active')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeFilter === 'active'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            Active ({activeClients.length})
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter('closed')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeFilter === 'closed'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            <CheckCircle className="w-4 h-4" />
+            Closed ({closedClients.length})
+          </button>
+          
+          <button
+            onClick={() => setActiveFilter('archived')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeFilter === 'archived'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            <Archive className="w-4 h-4" />
+            Archived ({archivedClients.length})
+          </button>
 
-      {/* CLIENT MODALS */}
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeFilter === 'all'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            All ({activeClients.length + closedClients.length + archivedClients.length})
+          </button>
+        </div>
+
+        {/* Pipeline Section */}
+        <ActivePipelineSection 
+          clients={getFilteredClients()}
+          onEditClient={handleEditClient}
+          onViewDetails={handleViewDetails}
+          onDeleteClient={handleDeleteClient}
+          onUpdateStage={updateClientStage}
+          onArchiveClient={handleArchiveClient}
+          onRestoreClient={handleRestoreClient}
+          showArchiveButton={activeFilter === 'active' || activeFilter === 'closed'}
+          showRestoreButton={activeFilter === 'archived'}
+        />
+      </div>
+
+      {/* MODALS */}
       <AddClientModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -444,7 +581,6 @@ export const CRM: React.FC = () => {
         onConfirm={handleClientClosing}
       />
 
-      {/* MORTGAGE MODALS */}
       <EditMortgageModal
         isOpen={showEditMortgageModal}
         onClose={() => {

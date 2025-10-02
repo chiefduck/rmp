@@ -237,17 +237,19 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
                 </span>
               </div>
               <div>
-  <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">
-    {mortgage.client_name}
-  </h2>
-  <p className="text-green-600 dark:text-green-300">
-    {formatLoanTypeDisplay(mortgage.loan_type)} • {mortgage.lender} • {mortgage.term_years}-Year Loan
-  </p>
-  <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-    Closed: {formatDate(mortgage.start_date)}
-  </p>
-</div>
+          <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">
+            {mortgage.client_name}
+          </h2>
+          <p className="text-green-600 dark:text-green-300">
+            {formatLoanTypeDisplay(mortgage.loan_type)} • {mortgage.lender} • {mortgage.term_years}-Year Loan
+          </p>
+          <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+            Closed: {formatDate(mortgage.start_date)}
+          </p>
+        </div>
             </div>
+
+            
             
             <div className="flex items-center space-x-2">
               <Button
@@ -288,8 +290,8 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Mortgage Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+{/* Mortgage Details Grid */}
+<div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Current Loan Info */}
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Current Loan</h3>
@@ -340,7 +342,38 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Savings Opportunity - DYNAMIC */}
+          {/* Refi Eligibility */}
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
+            <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-3">Refi Eligibility</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-purple-600 dark:text-purple-400">Eligible Date</label>
+                <p className="font-semibold text-purple-900 dark:text-purple-100">
+                  {mortgage.refi_eligible_date 
+                    ? formatDate(mortgage.refi_eligible_date)
+                    : 'Not set'
+                  }
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-purple-600 dark:text-purple-400">Status</label>
+                <p className="font-semibold text-purple-900 dark:text-purple-100">
+                  {(() => {
+                    if (!mortgage.refi_eligible_date) return 'Unknown'
+                    const today = new Date()
+                    const refiDate = new Date(mortgage.refi_eligible_date)
+                    const daysUntil = Math.ceil((refiDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                    
+                    if (daysUntil <= 0) return '✅ Eligible Now'
+                    if (daysUntil <= 30) return `⏰ ${daysUntil} days`
+                    return `📅 ${daysUntil} days`
+                  })()}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Savings Opportunity */}
           <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
             <h3 className="font-semibold text-green-900 dark:text-green-100 mb-3">Potential Savings*</h3>
             <div className="space-y-3">

@@ -27,144 +27,143 @@ export const RecentActivity: React.FC<{ refreshTrigger?: number }> = ({ refreshT
     }
   }, [user, refreshTrigger])
 
-  const fetchRecentActivity = async () => {
-    if (!user) return
+// In RecentActivity.tsx, replace the fetchRecentActivity function with this:
 
-    try {
-      const activities: Activity[] = []
-      const now = new Date()
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+const fetchRecentActivity = async () => {
+  if (!user) return
 
-      // 1. Fetch new clients added in last 7 days
-      const { data: newClients } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, created_at')
-        .eq('user_id', user.id)
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: false })
+  try {
+    const activities: Activity[] = []
+    const now = new Date()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-      newClients?.forEach(client => {
+    // 1. Fetch new clients added in last 7 days - EXCLUDE deleted
+    const { data: newClients } = await supabase
+      .from('clients')
+      .select('id, first_name, last_name, created_at')
+      .eq('user_id', user.id)
+      .is('deleted_at', null) // ← ADDED
+      .gte('created_at', sevenDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+
+    newClients?.forEach(client => {
+      activities.push({
+        id: `new_client_${client.id}`,
+        type: 'new_client',
+        message: `Added new client ${client.first_name} ${client.last_name}`,
+        timestamp: formatTimeAgo(new Date(client.created_at)),
+        status: 'success',
+        client_name: `${client.first_name} ${client.last_name}`
+      })
+    })
+
+    // 2. Fetch significant rate changes (±0.125% or more)
+    const { data: recentRates } = await supabase
+      .from('rate_history')
+      .select('rate_date, rate_value, change_1_day, created_at')
+      .eq('term_years', 30)
+      .eq('loan_type', 'conventional')
+      .gte('rate_date', sevenDaysAgo.toISOString().split('T')[0])
+      .order('rate_date', { ascending: false })
+      .limit(3)
+
+    recentRates?.forEach(rate => {
+      if (rate.change_1_day && Math.abs(rate.change_1_day) >= 0.125) {
+        const changeDirection = rate.change_1_day > 0 ? 'increased' : 'dropped'
         activities.push({
-          id: `new_client_${client.id}`,
-          type: 'new_client',
-          message: `Added new client ${client.first_name} ${client.last_name}`,
-          timestamp: formatTimeAgo(new Date(client.created_at)),
-          status: 'success',
-          client_name: `${client.first_name} ${client.last_name}`
+          id: `rate_change_${rate.rate_date}`,
+          type: 'rate_change',
+          message: `30yr rates ${changeDirection} to ${rate.rate_value.toFixed(3)}%`,
+          timestamp: formatTimeAgo(new Date(rate.created_at || rate.rate_date)),
+          status: rate.change_1_day > 0 ? 'warning' : 'success',
+          rate_value: rate.rate_value
         })
-      })
+      }
+    })
 
-      // 2. Fetch significant rate changes (±0.125% or more)
-      const { data: recentRates } = await supabase
-        .from('rate_history')
-        .select('rate_date, rate_value, change_1_day, created_at')
-        .eq('term_years', 30)
-        .eq('loan_type', 'conventional')
-        .gte('rate_date', sevenDaysAgo.toISOString().split('T')[0])
-        .order('rate_date', { ascending: false })
-        .limit(3)
+    // 3. Check for clients whose target rates were recently met - EXCLUDE deleted
+    const { data: clientsWithTargets } = await supabase
+      .from('clients')
+      .select('id, first_name, last_name, target_rate, loan_type, updated_at')
+      .eq('user_id', user.id)
+      .is('deleted_at', null) // ← ADDED
+      .not('target_rate', 'is', null)
 
-      recentRates?.forEach(rate => {
-        if (rate.change_1_day && Math.abs(rate.change_1_day) >= 0.125) {
-          const changeDirection = rate.change_1_day > 0 ? 'increased' : 'dropped'
-          activities.push({
-            id: `rate_change_${rate.rate_date}`,
-            type: 'rate_change',
-            message: `30yr rates ${changeDirection} to ${rate.rate_value.toFixed(3)}%`,
-            timestamp: formatTimeAgo(new Date(rate.created_at || rate.rate_date)),
-            status: rate.change_1_day > 0 ? 'warning' : 'success',
-            rate_value: rate.rate_value
-          })
-        }
-      })
+    // Get latest rates to check against targets
+    const { data: latestRates } = await supabase
+      .from('rate_history')
+      .select('rate_value, term_years, loan_type, rate_date')
+      .order('rate_date', { ascending: false })
+      .limit(10)
 
-      // 3. Check for clients whose target rates were recently met
-      const { data: clientsWithTargets } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, target_rate, loan_type, updated_at')
-        .eq('user_id', user.id)
-        .not('target_rate', 'is', null)
+    clientsWithTargets?.forEach(client => {
+      const relevantRate = latestRates?.find(rate => 
+        (client.loan_type === 'conventional' && rate.term_years === 30 && rate.loan_type === 'conventional') ||
+        (client.loan_type === 'fha' && rate.loan_type === 'fha') ||
+        (client.loan_type === 'va' && rate.loan_type === 'va')
+      )
 
-      // Get latest rates to check against targets
-      const { data: latestRates } = await supabase
-        .from('rate_history')
-        .select('rate_value, term_years, loan_type, rate_date')
-        .order('rate_date', { ascending: false })
-        .limit(10)
-
-      clientsWithTargets?.forEach(client => {
-        const relevantRate = latestRates?.find(rate => 
-          (client.loan_type === 'conventional' && rate.term_years === 30 && rate.loan_type === 'conventional') ||
-          (client.loan_type === 'fha' && rate.loan_type === 'fha') ||
-          (client.loan_type === 'va' && rate.loan_type === 'va')
-        )
-
-        if (relevantRate && client.target_rate && relevantRate.rate_value <= client.target_rate) {
-          // Only show if rate date is recent (within last 3 days)
-          const rateDate = new Date(relevantRate.rate_date)
-          const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-          
-          if (rateDate >= threeDaysAgo) {
-            activities.push({
-              id: `rate_alert_${client.id}`,
-              type: 'rate_alert',
-              message: `${client.first_name} ${client.last_name}'s target rate of ${client.target_rate}% reached`,
-              timestamp: formatTimeAgo(rateDate),
-              status: 'success',
-              client_name: `${client.first_name} ${client.last_name}`,
-              rate_value: relevantRate.rate_value
-            })
-          }
-        }
-      })
-
-      // 4. Track client pipeline movements (if we have stage change tracking)
-      // Note: This would require adding a client_history table to track stage changes
-      // For now, we'll check for recently updated clients that might indicate stage changes
-      const { data: recentUpdates } = await supabase
-        .from('clients')
-        .select('id, first_name, last_name, current_stage, updated_at, created_at')
-        .eq('user_id', user.id)
-        .gte('updated_at', sevenDaysAgo.toISOString())
-        .order('updated_at', { ascending: false })
-        .limit(5)
-
-      recentUpdates?.forEach(client => {
-        // Only show if updated recently and not the same as created (indicating an actual update)
-        const updatedAt = new Date(client.updated_at)
-        const createdAt = new Date(client.created_at)
-        const timeDiff = Math.abs(updatedAt.getTime() - createdAt.getTime())
+      if (relevantRate && client.target_rate && relevantRate.rate_value <= client.target_rate) {
+        const rateDate = new Date(relevantRate.rate_date)
+        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
         
-        // If updated more than 1 minute after creation, it's likely a real update
-        if (updatedAt > sevenDaysAgo && timeDiff > 60000) {
+        if (rateDate >= threeDaysAgo) {
           activities.push({
-            id: `client_update_${client.id}`,
-            type: 'stage_change',
-            message: `${client.first_name} ${client.last_name} moved to ${client.current_stage} stage`,
-            timestamp: formatTimeAgo(updatedAt),
-            status: 'info',
+            id: `rate_alert_${client.id}`,
+            type: 'rate_alert',
+            message: `${client.first_name} ${client.last_name}'s target rate of ${client.target_rate}% reached`,
+            timestamp: formatTimeAgo(rateDate),
+            status: 'success',
             client_name: `${client.first_name} ${client.last_name}`,
-            stage_to: client.current_stage
+            rate_value: relevantRate.rate_value
           })
         }
-      })
+      }
+    })
 
-      // Sort all activities by timestamp (most recent first)
-      activities.sort((a, b) => {
-        const timeA = parseTimeAgo(a.timestamp)
-        const timeB = parseTimeAgo(b.timestamp)
-        return timeA - timeB
-      })
+    // 4. Track recent client updates - EXCLUDE deleted
+    const { data: recentUpdates } = await supabase
+      .from('clients')
+      .select('id, first_name, last_name, current_stage, updated_at, created_at')
+      .eq('user_id', user.id)
+      .is('deleted_at', null) // ← ADDED
+      .gte('updated_at', sevenDaysAgo.toISOString())
+      .order('updated_at', { ascending: false })
+      .limit(5)
 
-      // Limit to 5 activities to keep UI clean
-      setActivities(activities.slice(0, 5))
-    } catch (error) {
-      console.error('Error fetching recent activity:', error)
-      setActivities([])
-    } finally {
-      setLoading(false)
-    }
+    recentUpdates?.forEach(client => {
+      const updatedAt = new Date(client.updated_at)
+      const createdAt = new Date(client.created_at)
+      const timeDiff = Math.abs(updatedAt.getTime() - createdAt.getTime())
+      
+      if (updatedAt > sevenDaysAgo && timeDiff > 60000) {
+        activities.push({
+          id: `client_update_${client.id}`,
+          type: 'stage_change',
+          message: `${client.first_name} ${client.last_name} moved to ${client.current_stage} stage`,
+          timestamp: formatTimeAgo(updatedAt),
+          status: 'info',
+          client_name: `${client.first_name} ${client.last_name}`,
+          stage_to: client.current_stage
+        })
+      }
+    })
+
+    // Sort all activities by timestamp (most recent first)
+    activities.sort((a, b) => {
+      const timeA = parseTimeAgo(a.timestamp)
+      const timeB = parseTimeAgo(b.timestamp)
+      return timeA - timeB
+    })
+
+    setActivities(activities.slice(0, 5))
+  } catch (error) {
+    console.error('Error fetching recent activity:', error)
+    setActivities([])
+  } finally {
+    setLoading(false)
   }
+}
 
   const formatTimeAgo = (date: Date): string => {
     const now = new Date()

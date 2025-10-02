@@ -19,7 +19,7 @@ import { useSubscription } from './hooks/useSubscription'
 import { Loader2 } from 'lucide-react'
 
 // Simple component to handle landing page logic
-const Landing: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
+const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = ({ onShowAuth, onGetStarted }) => {
   const { user } = useAuth()
   const { hasActiveSubscription, loading } = useSubscription()
 
@@ -51,7 +51,7 @@ const Landing: React.FC<{ onShowAuth: () => void }> = ({ onShowAuth }) => {
   return (
     <LandingPage 
       onLogin={onShowAuth}
-      onGetStarted={onShowAuth}
+      onGetStarted={onGetStarted}
     />
   )
 }

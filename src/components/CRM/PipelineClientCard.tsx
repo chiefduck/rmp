@@ -1,5 +1,5 @@
 import React from 'react'
-import { Phone, Mail, Edit, Trash2 } from 'lucide-react'
+import { Phone, Mail, Edit, Trash2, Archive, RotateCcw } from 'lucide-react'
 import { Client } from '../../lib/supabase'
 
 interface PipelineClientCardProps {
@@ -8,6 +8,10 @@ interface PipelineClientCardProps {
   onEdit: () => void
   onViewDetails: () => void
   onDelete: () => void
+  onArchive?: () => void
+  onRestore?: () => void
+  showArchiveButton?: boolean
+  showRestoreButton?: boolean
   onDragStart: () => void
   onDragEnd: () => void
 }
@@ -18,6 +22,10 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
   onEdit,
   onViewDetails,
   onDelete,
+  onArchive,
+  onRestore,
+  showArchiveButton = false,
+  showRestoreButton = false,
   onDragStart,
   onDragEnd
 }) => {
@@ -35,19 +43,15 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
     if (!loanType) return 'N/A'
     
     if (loanType.includes('_')) {
-      // New combined format: "conventional_30yr"
       const [type, term] = loanType.split('_')
       const formattedType = type.toUpperCase()
       const formattedTerm = term.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM')
       return `${formattedType} ${formattedTerm}`
     } else {
-      // Old single format - could be just a type or just a term
       const standardTerms = ['10yr', '15yr', '20yr', '25yr', '30yr', '40yr', 'io', 'arm']
       if (standardTerms.includes(loanType)) {
-        // It's just a term, show it formatted with "LOAN" prefix
         return `LOAN ${loanType.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM').toUpperCase()}`
       } else {
-        // It's a loan type, show it
         return loanType.toUpperCase()
       }
     }
@@ -57,13 +61,11 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
     onDragStart()
     e.dataTransfer.effectAllowed = 'move'
     
-    // Use the actual card element as drag image
     const cardElement = e.currentTarget as HTMLElement
     e.dataTransfer.setDragImage(cardElement, cardElement.offsetWidth / 2, cardElement.offsetHeight / 2)
   }
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only trigger edit if not clicking on action buttons
     const target = e.target as HTMLElement
     if (!target.closest('button')) {
       onEdit()
@@ -114,6 +116,33 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
           >
             <Edit className="w-3.5 h-3.5" />
           </button>
+          
+          {showArchiveButton && onArchive && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onArchive()
+              }}
+              className="p-1.5 text-gray-400 hover:text-purple-300 transition-colors rounded-lg hover:bg-purple-900/20"
+              title="Archive Client"
+            >
+              <Archive className="w-3.5 h-3.5" />
+            </button>
+          )}
+          
+          {showRestoreButton && onRestore && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onRestore()
+              }}
+              className="p-1.5 text-gray-400 hover:text-green-300 transition-colors rounded-lg hover:bg-green-900/20"
+              title="Restore Client"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+          
           <button
             onClick={(e) => {
               e.stopPropagation()

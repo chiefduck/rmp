@@ -16,6 +16,10 @@ interface StageColumnProps {
   onEditClient: (client: Client) => void
   onViewDetails: (client: Client) => void
   onDeleteClient: (client: Client) => void
+  onArchiveClient?: (client: Client) => void
+  onRestoreClient?: (client: Client) => void
+  showArchiveButton?: boolean
+  showRestoreButton?: boolean
   onDragStart: (client: Client) => void
   onDragEnd: () => void
   onDrop: (stageId: string) => void
@@ -28,6 +32,10 @@ export const StageColumn: React.FC<StageColumnProps> = ({
   onEditClient,
   onViewDetails,
   onDeleteClient,
+  onArchiveClient,
+  onRestoreClient,
+  showArchiveButton = false,
+  showRestoreButton = false,
   onDragStart,
   onDragEnd,
   onDrop
@@ -69,6 +77,10 @@ export const StageColumn: React.FC<StageColumnProps> = ({
             onEdit={() => onEditClient(client)}
             onViewDetails={() => onViewDetails(client)}
             onDelete={() => onDeleteClient(client)}
+            onArchive={onArchiveClient ? () => onArchiveClient(client) : undefined}
+            onRestore={onRestoreClient ? () => onRestoreClient(client) : undefined}
+            showArchiveButton={showArchiveButton}
+            showRestoreButton={showRestoreButton}
             onDragStart={() => onDragStart(client)}
             onDragEnd={onDragEnd}
           />
