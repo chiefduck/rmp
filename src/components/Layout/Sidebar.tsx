@@ -6,17 +6,16 @@ import {
   MessageSquare, 
   Phone, 
   Settings, 
-  CreditCard,
+  CreditCard, // This import is no longer used, but we can leave it for now
   Home,
   Moon,
   Sun,
   LogOut,
-  X // ADDED: Import the 'X' icon for the close button
+  X
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 
-// ADDED: An optional 'onClose' function to the props
 interface SidebarProps {
   className?: string
   onClose?: () => void
@@ -26,13 +25,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
   const { signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
+  // ✅ REMOVED: The "Billing" item has been removed from this array.
   const navigation = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/rates', label: 'Rate Monitor', icon: BarChart3 },
     { path: '/crm', label: 'CRM', icon: Users },
     { path: '/ai-assistant', label: 'AI Assistant', icon: MessageSquare },
     { path: '/calling', label: 'Auto Calling', icon: Phone },
-    { path: '/billing', label: 'Billing', icon: CreditCard },
     { path: '/settings', label: 'Settings', icon: Settings }
   ]
 
@@ -48,7 +47,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
-            {/* The text part of the logo is now wrapped to hide on collapsed desktop sidebar if you ever add that feature */}
             <div className="overflow-hidden">
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                 Rate Monitor Pro
@@ -56,9 +54,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
               <p className="text-xs text-gray-500">Enterprise Edition</p>
             </div>
           </div>
-
-          {/* ADDED: Mobile Close Button */}
-          {/* This button only appears if the 'onClose' function is provided (i.e., on mobile) */}
           {onClose && (
             <button
               onClick={onClose}
@@ -75,12 +70,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
       <nav className="flex-1 p-4 space-y-1">
         {navigation.map((item) => {
           const Icon = item.icon
-          
           return (
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={onClose} // ADDED: Clicking a link also closes the mobile menu
+              onClick={onClose}
               className={({ isActive }) => `
                 w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left
                 transition-all duration-200 group
@@ -97,15 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
 
       {/* Bottom Actions */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
-        <button
-          onClick={toggleTheme}
-          className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        >
-          {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-          <span className="font-medium">
-            {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-          </span>
-        </button>
+      
         
         <button
           onClick={() => signOut()}
