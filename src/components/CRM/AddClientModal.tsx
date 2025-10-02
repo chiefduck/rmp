@@ -279,7 +279,16 @@ export const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose,
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 md:gap-6">
-                  <Input label="Closing Date" type="date" value={pastClientData.start_date} onChange={(e) => setPastClientData(prev => ({ ...prev, start_date: e.target.value }))} required className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm" />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Closing Date *</label>
+                    <input
+                      type="date"
+                      value={pastClientData.start_date}
+                      onChange={(e) => setPastClientData(prev => ({ ...prev, start_date: e.target.value }))}
+                      required
+                      className="block w-full rounded-xl border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm text-gray-900 dark:text-gray-100 shadow-sm focus:border-green-500 focus:ring-green-500 transition-colors duration-200 px-3 md:px-4 py-2.5 md:py-3 text-sm md:text-base"
+                    />
+                  </div>
                   <Select label="Mortgage Term (Years)" value={pastClientData.term_years.toString()} onChange={(e) => setPastClientData(prev => ({ ...prev, term_years: parseInt(e.target.value) }))} options={termOptions} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm" />
                 </div>
               </div>
