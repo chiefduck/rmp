@@ -50,6 +50,13 @@ export const StageColumn: React.FC<StageColumnProps> = ({
     onDrop(stage.id)
   }
 
+  const handleStageChange = (client: Client, newStage: string) => {
+    // Call onDrop with the new stage ID to trigger the stage update
+    if (newStage !== stage.id) {
+      onDrop(newStage)
+    }
+  }
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -79,6 +86,14 @@ export const StageColumn: React.FC<StageColumnProps> = ({
             onDelete={() => onDeleteClient(client)}
             onArchive={onArchiveClient ? () => onArchiveClient(client) : undefined}
             onRestore={onRestoreClient ? () => onRestoreClient(client) : undefined}
+            onStageChange={(newStage) => {
+              // Temporarily set as dragged, then trigger drop
+              onDragStart(client)
+              setTimeout(() => {
+                onDrop(newStage)
+                onDragEnd()
+              }, 10)
+            }}
             showArchiveButton={showArchiveButton}
             showRestoreButton={showRestoreButton}
             onDragStart={() => onDragStart(client)}

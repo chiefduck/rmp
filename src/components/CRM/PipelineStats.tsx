@@ -28,71 +28,32 @@ export const PipelineStats: React.FC<PipelineStatsProps> = ({
   const totalPipelineValue = activeClients.reduce((sum, client) => sum + (client.loan_amount || 0), 0)
   const refiOpportunities = closedMortgages.filter(m => (m.savings_potential || 0) > 1000).length
 
+  const stats = [
+    { label: 'Active Pipeline', value: activeClients.length, icon: Users, gradient: 'from-blue-500 to-blue-600' },
+    { label: 'Rate Monitor', value: closedMortgages.length, icon: TrendingUp, gradient: 'from-green-500 to-green-600' },
+    { label: 'Pipeline Value', value: formatCurrency(totalPipelineValue), icon: DollarSign, gradient: 'from-purple-500 to-purple-600' },
+    { label: 'Refi Opportunities', value: refiOpportunities, icon: Target, gradient: 'from-orange-500 to-red-500' }
+  ]
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <Card className="bg-gray-800/70 backdrop-blur-md border-gray-700/30">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-              <Users className="w-6 h-6 text-white" />
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+      {stats.map(stat => (
+        <Card key={stat.label} className="bg-gray-800/70 backdrop-blur-md border-gray-700/30">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center space-y-2 md:space-y-0 md:space-x-3">
+              <div className={`w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r ${stat.gradient} rounded-xl flex items-center justify-center shadow-lg flex-shrink-0`}>
+                <stat.icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              </div>
+              <div className="w-full">
+                <p className="text-xs md:text-sm text-gray-400">{stat.label}</p>
+                <p className="text-xl md:text-2xl font-bold text-gray-100 truncate">
+                  {stat.value}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-400">Active Pipeline</p>
-              <p className="text-2xl font-bold text-gray-100">
-                {activeClients.length}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-800/70 backdrop-blur-md border-gray-700/30">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Rate Monitor</p>
-              <p className="text-2xl font-bold text-gray-100">
-                {closedMortgages.length}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-800/70 backdrop-blur-md border-gray-700/30">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <DollarSign className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Pipeline Value</p>
-              <p className="text-2xl font-bold text-gray-100">
-                {formatCurrency(totalPipelineValue).replace(/\.\d{2}$/, '')}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-800/70 backdrop-blur-md border-gray-700/30">
-        <CardContent className="p-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-400">Refi Opportunities</p>
-              <p className="text-2xl font-bold text-gray-100">
-                {refiOpportunities}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }
