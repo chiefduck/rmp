@@ -46,7 +46,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMo
       return
     }
 
-    console.log('Attempting auth:', isSignUp ? 'signup' : 'signin', formData.email)
+
 
     try {
       if (isSignUp) {

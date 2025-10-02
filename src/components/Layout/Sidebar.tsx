@@ -10,16 +10,19 @@ import {
   Home,
   Moon,
   Sun,
-  LogOut
+  LogOut,
+  X // ADDED: Import the 'X' icon for the close button
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
 
+// ADDED: An optional 'onClose' function to the props
 interface SidebarProps {
   className?: string
+  onClose?: () => void
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => {
   const { signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
@@ -40,16 +43,31 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
     `}>
       {/* Logo */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-            <BarChart3 className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
+            {/* The text part of the logo is now wrapped to hide on collapsed desktop sidebar if you ever add that feature */}
+            <div className="overflow-hidden">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                Rate Monitor Pro
+              </h1>
+              <p className="text-xs text-gray-500">Enterprise Edition</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Rate Monitor Pro
-            </h1>
-            <p className="text-xs text-gray-500">Enterprise Edition</p>
-          </div>
+
+          {/* ADDED: Mobile Close Button */}
+          {/* This button only appears if the 'onClose' function is provided (i.e., on mobile) */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden p-2 text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Close sidebar"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -62,25 +80,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '' }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={onClose} // ADDED: Clicking a link also closes the mobile menu
               className={({ isActive }) => `
                 w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left
                 transition-all duration-200 group
-                ${isActive ? '' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'}
+                ${isActive ? 'text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'}
               `}
-              style={({ isActive }) => ({
-                background: isActive 
-                  ? 'linear-gradient(to right, #2563eb, #4f46e5)' 
-                  : 'transparent',
-                color: isActive ? 'white' : undefined,
-                boxShadow: isActive ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)' : undefined
-              })}
+              style={({ isActive }) => ( isActive ? { background: 'linear-gradient(to right, #2563eb, #4f46e5)' } : {})}
             >
-              {({ isActive }) => (
-                <>
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-300'}`} />
-                  <span className={`font-medium ${isActive ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{item.label}</span>
-                </>
-              )}
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
             </NavLink>
           )
         })}
