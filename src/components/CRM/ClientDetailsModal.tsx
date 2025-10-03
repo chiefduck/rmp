@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Card, CardContent } from '../ui/Card'
-import { User, Phone, Mail, DollarSign, Calendar, MessageSquare, Plus, Trash2 } from 'lucide-react'
+import { User, Phone, Mail, DollarSign, Calendar, MessageSquare, Plus, X, Edit, Trash2 } from 'lucide-react'
 import { Client, ClientNote } from '../../lib/supabase'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -25,15 +24,15 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [newNote, setNewNote] = useState('')
   const [addingNote, setAddingNote] = useState(false)
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
 
   useEffect(() => {
     if (client && isOpen) {
       fetchNotes()
-      setNewNote('') // Clear note input when modal opens
+      setNewNote('')
     }
   }, [client, isOpen])
 
-  // Clear note input when modal closes
   useEffect(() => {
     if (!isOpen) {
       setNewNote('')
@@ -60,7 +59,8 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
     }
   }
 
-  const addNote = async () => {
+  const addNote = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!client || !user || !newNote.trim()) return
 
     setAddingNote(true)
@@ -80,6 +80,7 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
       await fetchNotes()
     } catch (error) {
       console.error('Error adding note:', error)
+      alert('Error adding note. Please try again.')
     } finally {
       setAddingNote(false)
     }
@@ -90,6 +91,7 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
       return
     }
 
+    setDeletingNoteId(noteId)
     try {
       const { error } = await supabase
         .from('client_notes')
@@ -98,16 +100,23 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
 
       if (error) throw error
       
-      // Remove from local state immediately
       setNotes(prev => prev.filter(note => note.id !== noteId))
     } catch (error) {
       console.error('Error deleting note:', error)
       alert('Failed to delete note. Please try again.')
+    } finally {
+      setDeletingNoteId(null)
     }
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
 
   const formatCurrency = (amount?: number) => {
@@ -123,6 +132,8 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
       case 'prospect': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
       case 'qualified': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
       case 'application': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300'
+      case 'processing': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+      case 'closing': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
       case 'closed': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
     }
@@ -130,13 +141,25 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
 
   const getNoteTypeColor = (type: string) => {
     switch (type) {
-      case 'stage_change': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+      case 'stage_change': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
       case 'call': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
-      case 'email': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+      case 'email': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
       case 'meeting': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300'
       case 'follow_up': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
     }
+  }
+
+  const formatLoanTypeDisplay = (loanType?: string) => {
+    if (!loanType) return 'N/A'
+    
+    if (loanType.includes('_')) {
+      const [type, term] = loanType.split('_')
+      const formattedType = type.toUpperCase()
+      const formattedTerm = term.replace('yr', ' Year').replace('io', 'Interest Only').replace('arm', 'ARM')
+      return `${formattedType} ${formattedTerm}`
+    }
+    return loanType.toUpperCase()
   }
 
   if (!client) return null
@@ -144,169 +167,250 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
   const clientName = `${client.first_name} ${client.last_name}`.trim()
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Client Details" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Client Details & History" size="xl">
       <div className="space-y-6">
-        {/* Client Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {clientName}
-              </h2>
-              <div className="flex items-center space-x-4 mt-1">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${getStageColor(client.current_stage)}`}>
-                  {client.current_stage}
-                </span>
-                <span className="text-gray-600 dark:text-gray-400">
-                  {client.loan_type.toUpperCase()}
+        {/* Header - Matches MortgageDetailsModal */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-white font-bold text-base sm:text-lg">
+                  {clientName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </span>
               </div>
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-100 truncate">
+                  {clientName}
+                </h2>
+                <p className="text-sm sm:text-base text-blue-600 dark:text-blue-300 truncate">
+                  {formatLoanTypeDisplay(client.loan_type)} • {client.lender || 'No lender set'}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStageColor(client.current_stage)}`}>
+                    {client.current_stage}
+                  </span>
+                  {client.credit_score && (
+                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                      Credit: {client.credit_score}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-          <Button onClick={onEdit}>
-            Edit Client
-          </Button>
-        </div>
 
-        {/* Client Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Email</p>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {client.email || 'Not provided'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <Phone className="w-5 h-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Phone</p>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {client.phone || 'Not provided'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <DollarSign className="w-5 h-5 text-purple-600" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Loan Amount</p>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {formatCurrency(client.loan_amount)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <Calendar className="w-5 h-5 text-orange-600" />
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Target Rate</p>
-                  <p className="font-medium text-gray-900 dark:text-gray-100">
-                    {client.target_rate ? `${client.target_rate}%` : 'Not set'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Notes Section */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
-              <MessageSquare className="w-5 h-5" />
-              <span>Notes & Activity</span>
-            </h3>
-          </div>
-
-          {/* Add Note */}
-          <div className="mb-6">
-            <div className="flex space-x-3">
-              <textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Add a note about this client..."
-                rows={3}
-                className="flex-1 rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-              />
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
               <Button
-                onClick={addNote}
-                loading={addingNote}
-                disabled={!newNote.trim()}
-                className="self-start"
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`tel:${client.phone}`)}
+                className="flex-1 sm:flex-none bg-green-50 hover:bg-green-100 border-green-200 text-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800 dark:text-green-300 min-h-[44px]"
               >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Note
+                <Phone className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Call</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`mailto:${client.email}`)}
+                className="flex-1 sm:flex-none bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300 min-h-[44px]"
+              >
+                <Mail className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Email</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onEdit}
+                className="min-h-[44px]"
+              >
+                <Edit className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit</span>
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* Client Info Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Contact</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Email</label>
+                <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
+                  {client.email || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 dark:text-gray-400">Phone</label>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">
+                  {client.phone || 'Not provided'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4">
+            <h3 className="font-semibold text-purple-900 dark:text-purple-100 mb-3">Loan Details</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-purple-600 dark:text-purple-400">Loan Amount</label>
+                <p className="font-semibold text-purple-900 dark:text-purple-100">
+                  {formatCurrency(client.loan_amount)}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-purple-600 dark:text-purple-400">Lender</label>
+                <p className="font-semibold text-purple-900 dark:text-purple-100">
+                  {client.lender || 'Not set'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">Rate Info</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-blue-600 dark:text-blue-400">Target Rate</label>
+                <p className="font-semibold text-blue-900 dark:text-blue-100">
+                  {client.target_rate ? `${client.target_rate}%` : 'Not set'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-blue-600 dark:text-blue-400">Credit Score</label>
+                <p className="font-semibold text-blue-900 dark:text-blue-100">
+                  {client.credit_score || 'Not set'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+            <h3 className="font-semibold text-green-900 dark:text-green-100 mb-3">Activity</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-green-600 dark:text-green-400">Last Contact</label>
+                <p className="font-semibold text-green-900 dark:text-green-100 text-sm">
+                  {client.last_contact ? new Date(client.last_contact).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-green-600 dark:text-green-400">Total Notes</label>
+                <p className="font-semibold text-green-900 dark:text-green-100">
+                  {notes.length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Notes Section */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+              <MessageSquare className="w-6 h-6 mr-3" />
+              Notes & Activity
+            </h3>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {notes.length} {notes.length === 1 ? 'note' : 'notes'}
+              </span>
+            </div>
+          </div>
+
+          {/* Add Note */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 sm:p-6 mb-6">
+            <form onSubmit={addNote} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Add New Note
+                </label>
+                <textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Add a detailed note about this client, communication log, or important update..."
+                  className="block w-full rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 px-4 py-3 min-h-[100px] text-base"
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  loading={addingNote}
+                  disabled={!newNote.trim()}
+                  size="sm"
+                  className="min-h-[44px]"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Note
+                </Button>
+              </div>
+            </form>
+          </div>
 
           {/* Notes List */}
-          <div className="space-y-4 max-h-96 overflow-y-auto">
+          <div className="space-y-4">
             {loading ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 <p className="mt-2 text-gray-600 dark:text-gray-400">Loading notes...</p>
               </div>
             ) : notes.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-gray-400">No notes yet. Add the first note above.</p>
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No notes yet</h4>
+                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto px-4">
+                  Start tracking your communication with this client by adding your first note above.
+                </p>
               </div>
             ) : (
-              notes.map((note) => (
-                <Card key={note.id} className="border-l-4 border-l-blue-500">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium capitalize ${getNoteTypeColor(note.note_type)}`}>
+              notes.map((note, index) => (
+                <div key={note.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium capitalize ${getNoteTypeColor(note.note_type)}`}>
                           {note.note_type.replace('_', ' ')}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                           {formatDate(note.created_at)}
                         </span>
+                        {index === 0 && (
+                          <span className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                            Latest
+                          </span>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteNote(note.id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 h-10 w-10"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
+
+                      {note.note_type === 'stage_change' && note.previous_stage && note.new_stage && (
+                        <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            <strong>Stage Change:</strong> {note.previous_stage} → {note.new_stage}
+                          </p>
+                        </div>
+                      )}
+
+                      <p className="text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap break-words">
+                        {note.note}
+                      </p>
                     </div>
                     
-                    {note.note_type === 'stage_change' && note.previous_stage && note.new_stage && (
-                      <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                        Stage changed from <span className="font-medium">{note.previous_stage}</span> to <span className="font-medium">{note.new_stage}</span>
-                      </div>
-                    )}
-                    
-                    <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                      {note.note}
-                    </p>
-                  </CardContent>
-                </Card>
+                    <button
+                      onClick={() => deleteNote(note.id)}
+                      disabled={deletingNoteId === note.id}
+                      className="flex-shrink-0 p-2 sm:p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      title="Delete note"
+                    >
+                      {deletingNoteId === note.id ? (
+                        <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
               ))
             )}
           </div>

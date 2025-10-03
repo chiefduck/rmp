@@ -15,8 +15,9 @@ interface Mortgage {
   term_years: number
   start_date: string
   lender: string
-  loan_type?: string // Add loan_type field
+  loan_type?: string
   notes?: string
+  refi_eligible_date?: string
   created_at: string
   updated_at: string
   client_name?: string
@@ -129,7 +130,6 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
     }
   }
 
-  // CORRECT mortgage payment calculation using amortization formula
   const calculateMonthlyPayment = (principal: number, annualRate: number, termYears: number) => {
     const monthlyRate = annualRate / 100 / 12
     const numPayments = termYears * 12
@@ -228,70 +228,71 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
     >
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-lg">
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <span className="text-white font-bold text-base sm:text-lg">
                   {mortgage.client_name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </span>
               </div>
-              <div>
-          <h2 className="text-2xl font-bold text-green-900 dark:text-green-100">
-            {mortgage.client_name}
-          </h2>
-          <p className="text-green-600 dark:text-green-300">
-            {formatLoanTypeDisplay(mortgage.loan_type)} • {mortgage.lender} • {mortgage.term_years}-Year Loan
-          </p>
-          <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-            Closed: {formatDate(mortgage.start_date)}
-          </p>
-        </div>
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100 truncate">
+                  {mortgage.client_name}
+                </h2>
+                <p className="text-sm sm:text-base text-green-600 dark:text-green-300 truncate">
+                  {formatLoanTypeDisplay(mortgage.loan_type)} • {mortgage.lender} • {mortgage.term_years}-Year Loan
+                </p>
+                <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 mt-1">
+                  Closed: {formatDate(mortgage.start_date)}
+                </p>
+              </div>
             </div>
 
-            
-            
-            <div className="flex items-center space-x-2">
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(`tel:${mortgage.phone}`)}
-                className="bg-green-50 hover:bg-green-100 border-green-200 text-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800 dark:text-green-300"
+                className="flex-1 sm:flex-none bg-green-50 hover:bg-green-100 border-green-200 text-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/30 dark:border-green-800 dark:text-green-300 min-h-[44px]"
               >
-                <Phone className="w-4 h-4 mr-2" />
-                Call
+                <Phone className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Call</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(`mailto:${mortgage.email}`)}
-                className="bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300"
+                className="flex-1 sm:flex-none bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300 min-h-[44px]"
               >
-                <Mail className="w-4 h-4 mr-2" />
-                Email
+                <Mail className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Email</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onEdit(mortgage)}
+                className="min-h-[44px]"
               >
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
+                <Edit className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit</span>
               </Button>
               <Button
                 variant="danger"
                 size="sm"
                 onClick={() => onDelete(mortgage)}
+                className="min-h-[44px]"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                <Trash2 className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Delete</span>
               </Button>
             </div>
           </div>
         </div>
 
-{/* Mortgage Details Grid */}
-<div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Mortgage Details Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {/* Current Loan Info */}
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
             <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Current Loan</h3>
@@ -336,7 +337,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
               <div>
                 <label className="text-xs text-blue-600 dark:text-blue-400">Market Rate</label>
                 <p className="font-semibold text-blue-900 dark:text-blue-100">
-                  {mortgage.market_rate}%
+                  {mortgage.market_rate || 'N/A'}%
                 </p>
               </div>
             </div>
@@ -407,7 +408,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
           </p>
         </div>
 
-        {/* Notes Section - ENHANCED UX */}
+        {/* Notes Section */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
@@ -421,8 +422,8 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Add New Note - Enhanced */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 mb-6">
+          {/* Add New Note */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 sm:p-6 mb-6">
             <form onSubmit={handleAddNote} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -432,7 +433,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Add a detailed note about this client, communication log, or important update..."
-                  className="block w-full rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 px-4 py-3 min-h-[100px]"
+                  className="block w-full rounded-xl border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200 px-4 py-3 min-h-[100px] text-base"
                   rows={4}
                 />
               </div>
@@ -442,6 +443,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
                   loading={addingNote}
                   disabled={!newNote.trim()}
                   size="sm"
+                  className="min-h-[44px]"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Note
@@ -450,13 +452,13 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
             </form>
           </div>
 
-          {/* Notes List - Full Height with Better Spacing */}
+          {/* Notes List */}
           <div className="space-y-4">
             {clientNotes.map((note, index) => (
-              <div key={note.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-3">
+              <div key={note.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
                       <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium capitalize ${getNoteTypeColor(note.note_type)}`}>
                         {note.note_type.replace('_', ' ')}
                       </span>
@@ -469,7 +471,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="text-gray-900 dark:text-gray-100 leading-relaxed">
+                    <p className="text-gray-900 dark:text-gray-100 leading-relaxed break-words">
                       {note.note}
                     </p>
                     {note.previous_stage && note.new_stage && (
@@ -485,7 +487,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
                   <button
                     onClick={() => handleDeleteNote(note.id)}
                     disabled={deletingNoteId === note.id}
-                    className="ml-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                    className="flex-shrink-0 p-2 sm:p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     title="Delete note"
                   >
                     {deletingNoteId === note.id ? (
@@ -502,7 +504,7 @@ export const MortgageDetailsModal: React.FC<MortgageDetailsModalProps> = ({
               <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                 <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No notes yet</h4>
-                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto px-4">
                   Start tracking your communication with this client by adding your first note above. 
                   Include call logs, meeting summaries, or important updates.
                 </p>
