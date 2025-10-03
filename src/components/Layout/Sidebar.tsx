@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
 
       {/* Bottom Actions */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
-      
+        
         
         <button
           onClick={() => signOut()}

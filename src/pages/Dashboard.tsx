@@ -14,6 +14,11 @@ interface MarketData {
   current_va?: number;
   current_jumbo?: number;
   change_1day_30yr?: number;
+  date_30yr?: string;
+  date_15yr?: string;
+  date_fha?: string;
+  date_va?: string;
+  date_jumbo?: string;
 }
 
 interface DashboardStats {
@@ -38,7 +43,17 @@ export const Dashboard: React.FC = () => {
       setRefreshTrigger(prev => prev + 1);
     };
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    
+    // Auto-refresh every 5 minutes
+    const refreshInterval = setInterval(() => {
+      fetchDashboardData();
+      setRefreshTrigger(prev => prev + 1);
+    }, 5 * 60 * 1000);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(refreshInterval);
+    };
   }, [user]);
 
   const fetchDashboardData = async () => {
@@ -65,6 +80,11 @@ export const Dashboard: React.FC = () => {
         current_va: currentRates['30yr_va']?.rate_value,
         current_jumbo: currentRates['30yr_jumbo']?.rate_value,
         change_1day_30yr: currentRates['30yr_conventional']?.change_1_day,
+        date_30yr: currentRates['30yr_conventional']?.rate_date,
+        date_15yr: currentRates['15yr_conventional']?.rate_date,
+        date_fha: currentRates['30yr_fha']?.rate_date,
+        date_va: currentRates['30yr_va']?.rate_date,
+        date_jumbo: currentRates['30yr_jumbo']?.rate_date,
       });
       
       setRateHistory(historyData?.map(trend => ({ date: trend.date, rate: trend.rate })) || []);
@@ -88,13 +108,18 @@ export const Dashboard: React.FC = () => {
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
   const getChangeColor = (change: number | null | undefined) => !change ? 'text-gray-500' : change > 0 ? 'text-red-500' : 'text-green-500';
   const getChangeIcon = (change: number | null | undefined) => !change ? null : change > 0 ? TrendingUp : TrendingDown;
+  const formatRateDate = (dateStr?: string) => {
+    if (!dateStr) return 'Updating...';
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   const rateWidgets = useMemo(() => [
-    { label: '30yr', current: marketData.current_30yr, change: marketData.change_1day_30yr, gradient: 'from-blue-500 to-blue-600' },
-    { label: '15yr', current: marketData.current_15yr, change: null, gradient: 'from-green-500 to-green-600' },
-    { label: 'FHA', current: marketData.current_fha, change: null, gradient: 'from-purple-500 to-purple-600' },
-    { label: 'VA', current: marketData.current_va, change: null, gradient: 'from-orange-500 to-orange-600' },
-    { label: 'Jumbo', current: marketData.current_jumbo, change: null, gradient: 'from-red-500 to-red-600' }
+    { label: '30yr', current: marketData.current_30yr, change: marketData.change_1day_30yr, date: marketData.date_30yr, gradient: 'from-blue-500 to-blue-600' },
+    { label: '15yr', current: marketData.current_15yr, change: null, date: marketData.date_15yr, gradient: 'from-green-500 to-green-600' },
+    { label: 'FHA', current: marketData.current_fha, change: null, date: marketData.date_fha, gradient: 'from-purple-500 to-purple-600' },
+    { label: 'VA', current: marketData.current_va, change: null, date: marketData.date_va, gradient: 'from-orange-500 to-orange-600' },
+    { label: 'Jumbo', current: marketData.current_jumbo, change: null, date: marketData.date_jumbo, gradient: 'from-red-500 to-red-600' }
   ], [marketData]);
 
   const statCards = useMemo(() => [
@@ -140,7 +165,6 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-6 pb-20 md:pb-6 p-4 md:p-0">
       
-      {/* Welcome Header */}
       <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
         <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white">
           <div className="flex flex-col md:flex-row md:justify-between md:items-start space-y-4 md:space-y-0">
@@ -156,7 +180,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Real-Time Rate Widgets */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {rateWidgets.map((rate) => {
           const ChangeIcon = getChangeIcon(rate.change);
@@ -180,13 +203,15 @@ export const Dashboard: React.FC = () => {
                     </div>
                   )}
                 </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {formatRateDate(rate.date)}
+                </p>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {statCards.map(card => (
           <div key={card.title} className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
@@ -204,7 +229,6 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
       <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
@@ -217,7 +241,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Charts and Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden">
           <RateChart data={rateHistory} title="30yr Fixed Rate Trends (Last 30 Days)" />
