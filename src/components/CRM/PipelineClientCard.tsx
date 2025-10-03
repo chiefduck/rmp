@@ -50,7 +50,9 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement
-    if (!target.closest('button')) onEdit()
+    if (!target.closest('button')) {
+      onViewDetails()
+    }
   }
 
   const handleStageChange = (newStage: string) => {

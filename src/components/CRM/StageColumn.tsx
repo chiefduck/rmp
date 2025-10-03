@@ -47,14 +47,8 @@ export const StageColumn: React.FC<StageColumnProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
+    console.log('Drop triggered for stage:', stage.id, 'Client:', draggedClient?.first_name)
     onDrop(stage.id)
-  }
-
-  const handleStageChange = (client: Client, newStage: string) => {
-    // Call onDrop with the new stage ID to trigger the stage update
-    if (newStage !== stage.id) {
-      onDrop(newStage)
-    }
   }
 
   return (
@@ -63,7 +57,6 @@ export const StageColumn: React.FC<StageColumnProps> = ({
       onDrop={handleDrop}
       className="bg-gray-800/40 backdrop-blur-md border border-gray-700/30 rounded-2xl p-4 min-h-[500px]"
     >
-      {/* Stage Header */}
       <div className="mb-4">
         <div className={`h-1 w-full bg-gradient-to-r ${stage.color} rounded-full mb-3`} />
         <div className="flex items-center justify-between">
@@ -74,7 +67,6 @@ export const StageColumn: React.FC<StageColumnProps> = ({
         </div>
       </div>
 
-      {/* Stage Cards */}
       <div className="space-y-3">
         {clients.map(client => (
           <PipelineClientCard
@@ -87,12 +79,9 @@ export const StageColumn: React.FC<StageColumnProps> = ({
             onArchive={onArchiveClient ? () => onArchiveClient(client) : undefined}
             onRestore={onRestoreClient ? () => onRestoreClient(client) : undefined}
             onStageChange={(newStage) => {
-              // Temporarily set as dragged, then trigger drop
               onDragStart(client)
-              setTimeout(() => {
-                onDrop(newStage)
-                onDragEnd()
-              }, 10)
+              onDrop(newStage)
+              onDragEnd()
             }}
             showArchiveButton={showArchiveButton}
             showRestoreButton={showRestoreButton}
@@ -103,9 +92,7 @@ export const StageColumn: React.FC<StageColumnProps> = ({
         
         {clients.length === 0 && (
           <div className="border-2 border-dashed border-gray-600/50 rounded-xl p-8 text-center">
-            <p className="text-gray-400 text-sm">
-              Drop clients here
-            </p>
+            <p className="text-gray-400 text-sm">Drop clients here</p>
           </div>
         )}
       </div>

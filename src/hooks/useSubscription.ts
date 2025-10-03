@@ -1,5 +1,4 @@
-// src/hooks/useSubscription.ts
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -22,12 +21,11 @@ interface StripeSubscription {
 export const useSubscription = () => {
   const { user } = useAuth()
   const [subscription, setSubscription] = useState<StripeSubscription | null>(null)
-  // Initialize loading as true if user exists
   const [loading, setLoading] = useState(true)
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const isFetchingRef = useRef(false)
 
   useEffect(() => {
-    // Reset state when user changes
     setLoading(true)
     setSubscription(null)
     setHasActiveSubscription(false)
@@ -38,8 +36,10 @@ export const useSubscription = () => {
     }
 
     const fetchSubscription = async () => {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
+
       try {
-        // Get customer ID
         const { data: customerData, error: customerError } = await supabase
           .from('stripe_customers')
           .select('customer_id')
@@ -47,11 +47,8 @@ export const useSubscription = () => {
           .is('deleted_at', null)
           .maybeSingle()
 
-        if (customerError) {
-          throw customerError
-        }
+        if (customerError) throw customerError
 
-        // No customer = no subscription
         if (!customerData) {
           setSubscription(null)
           setHasActiveSubscription(false)
@@ -59,7 +56,6 @@ export const useSubscription = () => {
           return
         }
 
-        // Get subscription data
         const { data: subscriptionData, error: subscriptionError } = await supabase
           .from('stripe_subscriptions')
           .select('*')
@@ -67,26 +63,21 @@ export const useSubscription = () => {
           .is('deleted_at', null)
           .maybeSingle()
 
-        if (subscriptionError) {
-          throw subscriptionError
-        }
+        if (subscriptionError) throw subscriptionError
 
         if (subscriptionData) {
           setSubscription(subscriptionData)
-          // Only 'active' or 'trialing' = access granted
           const isActive = ['active', 'trialing'].includes(subscriptionData.status)
           setHasActiveSubscription(isActive)
         } else {
           setSubscription(null)
           setHasActiveSubscription(false)
         }
-
       } catch (error) {
         console.error('Error fetching subscription:', error)
         setSubscription(null)
         setHasActiveSubscription(false)
       } finally {
-        // Always set loading to false when done
         setLoading(false)
         isFetchingRef.current = false
       }
@@ -94,19 +85,11 @@ export const useSubscription = () => {
 
     fetchSubscription()
 
-    // Set up real-time subscription updates
     const subscription_channel = supabase
       .channel('stripe_subscriptions_updates')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'stripe_subscriptions'
-        }, 
-        () => {
-          fetchSubscription()
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stripe_subscriptions' }, () => {
+        fetchSubscription()
+      })
       .subscribe()
 
     return () => {
