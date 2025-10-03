@@ -16,15 +16,8 @@ interface ActivePipelineSectionProps {
 }
 
 export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
-  clients,
-  onEditClient,
-  onViewDetails,
-  onDeleteClient,
-  onUpdateStage,
-  onArchiveClient,
-  onRestoreClient,
-  showArchiveButton = false,
-  showRestoreButton = false
+  clients, onEditClient, onViewDetails, onDeleteClient, onUpdateStage, onArchiveClient, onRestoreClient,
+  showArchiveButton = false, showRestoreButton = false
 }) => {
   const [draggedClient, setDraggedClient] = useState<Client | null>(null)
 
@@ -36,19 +29,10 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
     { id: 'closing', title: 'Closing', color: 'from-green-500 to-green-600' }
   ]
 
-  const stagesWithCounts = stages.map(stage => ({
-    ...stage,
-    count: clients.filter(client => client.current_stage === stage.id).length
-  }))
+  const stagesWithCounts = stages.map(stage => ({ ...stage, count: clients.filter(client => client.current_stage === stage.id).length }))
 
-  const handleDragStart = (client: Client) => {
-    setDraggedClient(client)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedClient(null)
-  }
-
+  const handleDragStart = (client: Client) => setDraggedClient(client)
+  const handleDragEnd = () => setDraggedClient(null)
   const handleDrop = (newStage: string) => {
     if (draggedClient && draggedClient.current_stage !== newStage) {
       onUpdateStage(draggedClient.id, newStage, draggedClient.current_stage)
@@ -62,15 +46,11 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
         <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
           <Users className="w-4 h-4 md:w-5 md:h-5 text-white" />
         </div>
-        <h2 className="text-xl md:text-2xl font-bold text-gray-100">
-          {showRestoreButton ? 'Archived Clients' : 'Active Pipeline'}
-        </h2>
+        <h2 className="text-xl md:text-2xl font-bold text-gray-100">{showRestoreButton ? 'Archived Clients' : 'Active Pipeline'}</h2>
         <div className="flex-1 h-px bg-gradient-to-r from-blue-500/30 to-transparent" />
       </div>
       
-      {/* Mobile: Horizontal scroll | Desktop: Grid */}
       <div className="lg:grid lg:grid-cols-5 lg:gap-6">
-        {/* Mobile wrapper with horizontal scroll */}
         <div className="flex lg:hidden overflow-x-auto gap-4 pb-4 -mx-4 px-4 snap-x snap-mandatory">
           {stagesWithCounts.map(stage => (
             <div key={stage.id} className="min-w-[280px] snap-start">
@@ -81,6 +61,7 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
                 onEditClient={onEditClient}
                 onViewDetails={onViewDetails}
                 onDeleteClient={onDeleteClient}
+                onUpdateStage={onUpdateStage}
                 onArchiveClient={onArchiveClient}
                 onRestoreClient={onRestoreClient}
                 showArchiveButton={showArchiveButton}
@@ -93,7 +74,6 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
           ))}
         </div>
 
-        {/* Desktop grid */}
         <div className="hidden lg:contents">
           {stagesWithCounts.map(stage => (
             <StageColumn
@@ -104,6 +84,7 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
               onEditClient={onEditClient}
               onViewDetails={onViewDetails}
               onDeleteClient={onDeleteClient}
+              onUpdateStage={onUpdateStage}
               onArchiveClient={onArchiveClient}
               onRestoreClient={onRestoreClient}
               showArchiveButton={showArchiveButton}
@@ -116,7 +97,6 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
         </div>
       </div>
 
-      {/* Mobile scroll hint */}
       <div className="lg:hidden text-center mt-4">
         <p className="text-xs text-gray-500">← Swipe to see more stages →</p>
       </div>
