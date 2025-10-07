@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, TrendingDown, Phone, Mail, DollarSign, Target, RefreshCw, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { RateService } from '../lib/rateService';
 import { RateChart } from '../components/Dashboard/RateChart';
 import { RecentActivity } from '../components/Dashboard/RecentActivity';
@@ -29,6 +30,7 @@ interface DashboardStats {
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { info } = useToast();
   const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [marketData, setMarketData] = useState<MarketData>({});
@@ -38,19 +40,41 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // ✅ REAL-TIME RATE SUBSCRIPTION
+    console.log('Setting up real-time rate subscription on dashboard...')
+    const rateSubscription = supabase
+      .channel('dashboard_rate_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'rate_history'
+        },
+        (payload) => {
+          console.log('🔔 Dashboard: New rate data received!', payload)
+          info('Market rates updated!')
+          fetchDashboardData()
+          setRefreshTrigger(prev => prev + 1)
+        }
+      )
+      .subscribe()
+
     const handleFocus = () => {
       fetchDashboardData();
       setRefreshTrigger(prev => prev + 1);
     };
     window.addEventListener('focus', handleFocus);
     
-    // Auto-refresh every 5 minutes
+    // Auto-refresh every 15 minutes as backup
     const refreshInterval = setInterval(() => {
       fetchDashboardData();
       setRefreshTrigger(prev => prev + 1);
-    }, 5 * 60 * 1000);
+    }, 15 * 60 * 1000);
     
     return () => {
+      rateSubscription.unsubscribe()
       window.removeEventListener('focus', handleFocus);
       clearInterval(refreshInterval);
     };
@@ -93,11 +117,12 @@ export const Dashboard: React.FC = () => {
     }
   };
   
+  // ✅ FIXED: Only re-fetch from DB
   const handleRefreshRates = async () => {
     setIsRefreshing(true);
     try {
-      await RateService.fetchFreshRates();
       await fetchDashboardData();
+      info('Dashboard refreshed successfully!');
     } catch (error) {
       console.error('Error refreshing rates:', error);
     } finally {
@@ -172,10 +197,16 @@ export const Dashboard: React.FC = () => {
               <h1 className="text-2xl md:text-3xl font-bold mb-2 drop-shadow-sm">Welcome back! 👋</h1>
               <p className="text-white/90 text-base md:text-lg">Here's what's happening with your mortgage business today.</p>
             </div>
-            <button onClick={handleRefreshRates} disabled={isRefreshing} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 w-full md:w-auto justify-center">
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              <span className="text-sm font-medium">Refresh Rates</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-xs text-white/80 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span>Live Updates</span>
+              </div>
+              <button onClick={handleRefreshRates} disabled={isRefreshing} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 w-auto justify-center">
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="text-sm font-medium">Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

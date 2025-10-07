@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 import { ProtectedRoute } from './components/Layout/ProtectedRoute'
 import { AppLayout } from './components/Layout/AppLayout'
 import { AuthModal } from './components/Auth/AuthModal'
@@ -110,7 +111,9 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <AppContent />
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
       </ThemeProvider>
     </AuthProvider>
   )

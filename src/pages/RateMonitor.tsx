@@ -4,6 +4,8 @@ import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import HistoricalRateChart from '../components/RateMonitor/HistoricalRateChart'
 import { RateService } from '../lib/rateService'
+import { supabase } from '../lib/supabase'
+import { useToast } from '../contexts/ToastContext'
 
 interface RateDisplayData {
   loan_type: string
@@ -19,6 +21,7 @@ interface RateDisplayData {
 }
 
 export const RateMonitor: React.FC = () => {
+  const { info } = useToast()
   const [rates, setRates] = useState<RateDisplayData[]>([])
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
@@ -31,14 +34,36 @@ export const RateMonitor: React.FC = () => {
     fetchRateHistory()
     fetchRealAlerts()
 
-    // Auto-refresh every 5 minutes to catch GitHub Actions updates
+    // ✅ REAL-TIME SUBSCRIPTION - Updates instantly when GitHub Action adds new rates
+    console.log('Setting up real-time rate subscription...')
+    const rateSubscription = supabase
+      .channel('rate_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'rate_history'
+        },
+        (payload) => {
+          console.log('🔔 New rate data received!', payload)
+          info('New rates available! Updating...')
+          fetchRates()
+          fetchRateHistory()
+          fetchRealAlerts()
+          setLastRefresh(new Date())
+        }
+      )
+      .subscribe()
+
+    // Auto-refresh every 15 minutes as backup
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing rate data...')
       fetchRates()
       fetchRateHistory()
       fetchRealAlerts()
       setLastRefresh(new Date())
-    }, 5 * 60 * 1000)
+    }, 15 * 60 * 1000)
 
     // Refresh on window focus
     const handleFocus = () => {
@@ -51,6 +76,7 @@ export const RateMonitor: React.FC = () => {
     window.addEventListener('focus', handleFocus)
 
     return () => {
+      rateSubscription.unsubscribe()
       clearInterval(refreshInterval)
       window.removeEventListener('focus', handleFocus)
     }
@@ -176,21 +202,35 @@ export const RateMonitor: React.FC = () => {
     }
   }
 
+  // ✅ Manual refresh triggers fresh scrape from MND
   const refreshRates = async () => {
     setLoading(true)
     try {
+      info('Fetching fresh rates from MND...')
       const freshDataSuccess = await RateService.fetchFreshRates()
+      
       if (freshDataSuccess) {
+        // Wait a bit for data to be written to DB
         await new Promise(resolve => setTimeout(resolve, 2000))
+        await fetchRates()
+        await fetchRateHistory()
+        await fetchRealAlerts()
+        setLastRefresh(new Date())
+        info('✅ Fresh rates updated successfully!')
+      } else {
+        // Fallback to just re-fetching existing data
+        await fetchRates()
+        await fetchRateHistory()
+        await fetchRealAlerts()
+        setLastRefresh(new Date())
+        info('⚠️ Could not fetch fresh data, showing latest available rates')
       }
+    } catch (error) {
+      console.error('Error refreshing rates:', error)
+      // Still try to show existing data
       await fetchRates()
       await fetchRateHistory()
       await fetchRealAlerts()
-      setLastRefresh(new Date())
-      alert(freshDataSuccess ? '✅ Rates updated with fresh data!' : '⚠️ Refreshed with existing data')
-    } catch (error) {
-      console.error('Error refreshing rates:', error)
-      alert('❌ Failed to refresh rates.')
     } finally {
       setLoading(false)
     }
@@ -222,15 +262,19 @@ export const RateMonitor: React.FC = () => {
             </div>
             {dataLastUpdated && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
                 <span className="font-medium text-blue-900 dark:text-blue-300">MND Data: {formatDateOnly(dataLastUpdated)}</span>
               </div>
             )}
+            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>Live Updates</span>
+            </div>
           </div>
         </div>
         <Button onClick={refreshRates} loading={loading}>
           <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh Rates
+          Refresh
         </Button>
       </div>
 
@@ -297,7 +341,7 @@ export const RateMonitor: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Rate Comparison - Live Market Data</CardTitle>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Real-time data from Mortgage News Daily - updated daily</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Real-time data from Mortgage News Daily - updates automatically</p>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -337,7 +381,7 @@ export const RateMonitor: React.FC = () => {
           <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
             * Data sourced directly from Mortgage News Daily Rate Index<br />
             * Red = rate increase, Green = rate decrease, Blue = no change<br />
-            * Auto-refreshes every 5 minutes
+            * Updates automatically via real-time subscription
           </div>
         </CardContent>
       </Card>

@@ -12,6 +12,8 @@ import { EditMortgageModal } from '../components/CRM/EditMortgageModal'
 import { MortgageDetailsModal } from '../components/CRM/MortgageDetailsModal'
 import { supabase, Client } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { useConfirm } from '../hooks/useConfirm'
 import { deleteClient } from '../utils/clientUtils'
 import { RateService } from '../lib/rateService'
 
@@ -39,6 +41,9 @@ type ClientFilter = 'active' | 'closed' | 'archived' | 'all'
 
 export const CRM: React.FC = () => {
   const { user } = useAuth()
+  const { success, error: showError } = useToast()
+  const { confirm, ConfirmDialog } = useConfirm()
+  
   const [activeClients, setActiveClients] = useState<Client[]>([])
   const [closedClients, setClosedClients] = useState<Client[]>([])
   const [archivedClients, setArchivedClients] = useState<Client[]>([])
@@ -110,6 +115,7 @@ export const CRM: React.FC = () => {
       setArchivedClients(archivedData.data || [])
     } catch (error) {
       console.error('Error fetching data:', error)
+      showError('Failed to load pipeline data. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -124,29 +130,47 @@ export const CRM: React.FC = () => {
 
   const handleArchiveClient = async (client: Client) => {
     const clientName = `${client.first_name} ${client.last_name}`.trim()
-    if (!window.confirm(`Archive ${clientName}?\n\nArchived clients are removed from active pipeline and rate monitoring, but you can still view their history.`)) return
+    
+    const confirmed = await confirm({
+      title: 'Archive Client',
+      message: `Archive ${clientName}?\n\nArchived clients are removed from active pipeline and rate monitoring, but you can still view their history.`,
+      confirmText: 'Archive',
+      variant: 'warning'
+    })
+    
+    if (!confirmed) return
 
     try {
       const { error } = await supabase.from('clients').update({ status: 'archived', updated_at: new Date().toISOString() }).eq('id', client.id)
       if (error) throw error
+      success(`${clientName} archived successfully`)
       await fetchData()
     } catch (error) {
       console.error('Error archiving client:', error)
-      alert('Error archiving client. Please try again.')
+      showError('Failed to archive client. Please try again.')
     }
   }
 
   const handleRestoreClient = async (client: Client) => {
     const clientName = `${client.first_name} ${client.last_name}`.trim()
-    if (!window.confirm(`Restore ${clientName} to active pipeline?`)) return
+    
+    const confirmed = await confirm({
+      title: 'Restore Client',
+      message: `Restore ${clientName} to active pipeline?`,
+      confirmText: 'Restore',
+      variant: 'info'
+    })
+    
+    if (!confirmed) return
 
     try {
       const { error } = await supabase.from('clients').update({ status: 'active', current_stage: 'prospect', updated_at: new Date().toISOString() }).eq('id', client.id)
       if (error) throw error
+      success(`${clientName} restored to active pipeline`)
       await fetchData()
     } catch (error) {
       console.error('Error restoring client:', error)
-      alert('Error restoring client. Please try again.')
+      showError('Failed to restore client. Please try again.')
     }
   }
 
@@ -166,8 +190,10 @@ export const CRM: React.FC = () => {
       const { error } = await supabase.from('clients').update({ current_stage: newStage, updated_at: new Date().toISOString() }).eq('id', clientId)
       if (error) throw error
       await supabase.from('client_notes').insert({ client_id: clientId, user_id: user?.id, note: `Stage changed from ${previousStage} to ${newStage}`, note_type: 'stage_change', previous_stage: previousStage, new_stage: newStage })
+      success('Client stage updated successfully')
     } catch (error) {
       console.error('Error updating stage:', error)
+      showError('Failed to update client stage')
       fetchData()
     }
   }
@@ -179,22 +205,31 @@ export const CRM: React.FC = () => {
       await supabase.from('clients').update({ status: 'closed', current_stage: 'closed', updated_at: new Date().toISOString() }).eq('id', selectedClient.id)
       await supabase.from('mortgages').insert({ client_id: selectedClient.id, ...mortgageData })
       await supabase.from('client_notes').insert({ client_id: selectedClient.id, user_id: user?.id, note: `Loan closed with ${mortgageData.lender} at ${mortgageData.current_rate}%. Refi eligible: ${mortgageData.refi_eligible_date}`, note_type: 'stage_change', previous_stage: selectedClient.current_stage, new_stage: 'closed' })
+      success('Client loan closed successfully!')
       await fetchData()
       setShowClosingModal(false)
       setSelectedClient(null)
     } catch (error) {
       console.error('Error closing client:', error)
-      alert('Error closing client. Please try again.')
+      showError('Failed to close client loan. Please try again.')
     }
   }
 
   const handleDeleteClient = async (client: Client) => {
     const clientName = `${client.first_name} ${client.last_name}`.trim()
-    if (!window.confirm(`Are you sure you want to delete ${clientName}?\n\nThis will permanently remove:\n• Client information\n• All notes and activity\n• This action cannot be undone.`)) return
+    
+    const confirmed = await confirm({
+      title: 'Delete Client',
+      message: `Are you sure you want to delete ${clientName}?\n\nThis will permanently remove:\n• Client information\n• All notes and activity\n• This action cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+    
+    if (!confirmed) return
 
     try {
-      const success = await deleteClient(client.id)
-      if (success) {
+      const successResult = await deleteClient(client.id)
+      if (successResult) {
         setActiveClients(prev => prev.filter(c => c.id !== client.id))
         setClosedClients(prev => prev.filter(c => c.id !== client.id))
         setArchivedClients(prev => prev.filter(c => c.id !== client.id))
@@ -203,17 +238,25 @@ export const CRM: React.FC = () => {
           setShowEditModal(false)
           setShowDetailsModal(false)
         }
+        success(`${clientName} deleted successfully`)
       } else {
-        alert(`Failed to delete ${clientName}. Please try again.`)
+        showError(`Failed to delete ${clientName}. Please try again.`)
       }
     } catch (error) {
       console.error('Error in delete handler:', error)
-      alert(`An error occurred while deleting ${clientName}. Please try again.`)
+      showError(`An error occurred while deleting ${clientName}. Please try again.`)
     }
   }
 
   const handleDeleteMortgage = async (mortgage: Mortgage) => {
-    if (!window.confirm(`Are you sure you want to delete ${mortgage.client_name}'s mortgage?\n\nThis will remove it from rate monitoring and cannot be undone.`)) return
+    const confirmed = await confirm({
+      title: 'Delete Mortgage',
+      message: `Are you sure you want to delete ${mortgage.client_name}'s mortgage?\n\nThis will remove it from rate monitoring and cannot be undone.`,
+      confirmText: 'Delete',
+      variant: 'danger'
+    })
+    
+    if (!confirmed) return
     
     try {
       const { error } = await supabase.from('mortgages').delete().eq('id', mortgage.id)
@@ -224,9 +267,10 @@ export const CRM: React.FC = () => {
         setShowEditMortgageModal(false)
         setShowMortgageDetailsModal(false)
       }
+      success('Mortgage deleted successfully')
     } catch (error) {
       console.error('Error deleting mortgage:', error)
-      alert('Error deleting mortgage. Please try again.')
+      showError('Failed to delete mortgage. Please try again.')
       fetchData()
     }
   }
@@ -260,76 +304,79 @@ export const CRM: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-20 md:pb-6 p-4 md:p-0">
-      {/* Header - Mobile Optimized */}
-      <div className="text-center mb-6 md:mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-          Pipeline Management
-        </h1>
-        <p className="text-sm md:text-base text-gray-400">
-          Active pipeline and rate monitoring dashboard
-        </p>
-        <div className="mt-4">
-          <Button onClick={() => setShowAddModal(true)} className="w-full md:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Client
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Overview - Mobile Responsive */}
-      <PipelineStats activeClients={activeClients} closedMortgages={closedMortgages} />
-
-      {/* Rate Monitor Section - Only show for active filter */}
-      {activeFilter === 'active' && (
-        <RateMonitorSection 
-          mortgages={closedMortgages}
-          onEditMortgage={(m) => { setSelectedMortgage(m); setShowEditMortgageModal(true) }}
-          onViewMortgageDetails={(m) => { setSelectedMortgage(m); setShowMortgageDetailsModal(true) }}
-          onDeleteMortgage={handleDeleteMortgage}
-        />
-      )}
-
-      {/* Filter Tabs - Mobile Scrollable */}
-      <div className="backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
-        <div className="flex items-center gap-2 md:gap-4 mb-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
-          {filterTabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id as ClientFilter)}
-              className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap flex-shrink-0 ${
-                activeFilter === tab.id
-                  ? `bg-${tab.color}-600 text-white`
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {tab.icon && <tab.icon className="w-4 h-4" />}
-              <span className="text-sm md:text-base">{tab.label} ({tab.count})</span>
-            </button>
-          ))}
+    <>
+      <ConfirmDialog />
+      <div className="space-y-6 md:space-y-8 pb-20 md:pb-6 p-4 md:p-0">
+        {/* Header - Mobile Optimized */}
+        <div className="text-center mb-6 md:mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            Pipeline Management
+          </h1>
+          <p className="text-sm md:text-base text-gray-400">
+            Active pipeline and rate monitoring dashboard
+          </p>
+          <div className="mt-4">
+            <Button onClick={() => setShowAddModal(true)} className="w-full md:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Client
+            </Button>
+          </div>
         </div>
 
-        {/* Pipeline Section */}
-        <ActivePipelineSection 
-          clients={getFilteredClients()}
-          onEditClient={(c) => { setSelectedClient(c); setShowEditModal(true) }}
-          onViewDetails={(c) => { setSelectedClient(c); setShowDetailsModal(true) }}
-          onDeleteClient={handleDeleteClient}
-          onUpdateStage={updateClientStage}
-          onArchiveClient={handleArchiveClient}
-          onRestoreClient={handleRestoreClient}
-          showArchiveButton={activeFilter === 'active' || activeFilter === 'closed'}
-          showRestoreButton={activeFilter === 'archived'}
-        />
-      </div>
+        {/* Stats Overview - Mobile Responsive */}
+        <PipelineStats activeClients={activeClients} closedMortgages={closedMortgages} />
 
-      {/* MODALS */}
-      <AddClientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onClientAdded={fetchData} />
-      <EditClientModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedClient(null) }} onClientUpdated={fetchData} client={selectedClient} />
-      <ClientDetailsModal isOpen={showDetailsModal} onClose={() => { setShowDetailsModal(false); setSelectedClient(null) }} client={selectedClient} onEdit={() => { setShowDetailsModal(false); setShowEditModal(true) }} />
-      <ClosingModal isOpen={showClosingModal} onClose={() => { setShowClosingModal(false); setSelectedClient(null) }} client={selectedClient} onConfirm={handleClientClosing} />
-      <EditMortgageModal isOpen={showEditMortgageModal} onClose={() => { setShowEditMortgageModal(false); setSelectedMortgage(null) }} mortgage={selectedMortgage} onMortgageUpdated={fetchData} />
-      <MortgageDetailsModal isOpen={showMortgageDetailsModal} onClose={() => { setShowMortgageDetailsModal(false); setSelectedMortgage(null) }} mortgage={selectedMortgage} onEdit={(m) => { setShowMortgageDetailsModal(false); setSelectedMortgage(m); setShowEditMortgageModal(true) }} onDelete={handleDeleteMortgage} />
-    </div>
+        {/* Rate Monitor Section - Only show for active filter */}
+        {activeFilter === 'active' && (
+          <RateMonitorSection 
+            mortgages={closedMortgages}
+            onEditMortgage={(m) => { setSelectedMortgage(m); setShowEditMortgageModal(true) }}
+            onViewMortgageDetails={(m) => { setSelectedMortgage(m); setShowMortgageDetailsModal(true) }}
+            onDeleteMortgage={handleDeleteMortgage}
+          />
+        )}
+
+        {/* Filter Tabs - Mobile Scrollable */}
+        <div className="backdrop-blur-sm bg-gray-800/60 border border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
+          <div className="flex items-center gap-2 md:gap-4 mb-6 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+            {filterTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveFilter(tab.id as ClientFilter)}
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                  activeFilter === tab.id
+                    ? `bg-${tab.color}-600 text-white`
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {tab.icon && <tab.icon className="w-4 h-4" />}
+                <span className="text-sm md:text-base">{tab.label} ({tab.count})</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Pipeline Section */}
+          <ActivePipelineSection 
+            clients={getFilteredClients()}
+            onEditClient={(c) => { setSelectedClient(c); setShowEditModal(true) }}
+            onViewDetails={(c) => { setSelectedClient(c); setShowDetailsModal(true) }}
+            onDeleteClient={handleDeleteClient}
+            onUpdateStage={updateClientStage}
+            onArchiveClient={handleArchiveClient}
+            onRestoreClient={handleRestoreClient}
+            showArchiveButton={activeFilter === 'active' || activeFilter === 'closed'}
+            showRestoreButton={activeFilter === 'archived'}
+          />
+        </div>
+
+        {/* MODALS */}
+        <AddClientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onClientAdded={fetchData} />
+        <EditClientModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedClient(null) }} onClientUpdated={fetchData} client={selectedClient} />
+        <ClientDetailsModal isOpen={showDetailsModal} onClose={() => { setShowDetailsModal(false); setSelectedClient(null) }} client={selectedClient} onEdit={() => { setShowDetailsModal(false); setShowEditModal(true) }} />
+        <ClosingModal isOpen={showClosingModal} onClose={() => { setShowClosingModal(false); setSelectedClient(null) }} client={selectedClient} onConfirm={handleClientClosing} />
+        <EditMortgageModal isOpen={showEditMortgageModal} onClose={() => { setShowEditMortgageModal(false); setSelectedMortgage(null) }} mortgage={selectedMortgage} onMortgageUpdated={fetchData} />
+        <MortgageDetailsModal isOpen={showMortgageDetailsModal} onClose={() => { setShowMortgageDetailsModal(false); setSelectedMortgage(null) }} mortgage={selectedMortgage} onEdit={(m) => { setShowMortgageDetailsModal(false); setSelectedMortgage(m); setShowEditMortgageModal(true) }} onDelete={handleDeleteMortgage} />
+      </div>
+    </>
   )
 }
