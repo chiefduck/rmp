@@ -1,55 +1,142 @@
 import React, { useState, useEffect } from 'react'
-import { Bell, Search, User, Menu } from 'lucide-react'
+import { Bell, User, Menu, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { Card } from '../ui/Card'
 import { supabase } from '../../lib/supabase'
+import { RateService } from '../../lib/rateService'
 
-// The only prop needed is the function to toggle the mobile menu
 interface HeaderProps {
-  onMenuToggle: () => void;
+  onMenuToggle: () => void
+}
+
+interface Notification {
+  id: string
+  title: string
+  message: string
+  time: string
+  read: boolean
+  type: 'rate_alert' | 'client_update' | 'system'
+  client_id?: string
 }
 
 export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { profile, user } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
-  const [notifications, setNotifications] = useState<any[]>([])
-  
-  // --- ALL YOUR ORIGINAL NOTIFICATION LOGIC IS PRESERVED HERE ---
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+
   const fetchNotifications = async () => {
     if (!user) return
-    
+
+    setLoading(true)
     try {
-      const { data, error } = await supabase
+      // 1. Fetch rate alerts (clients whose target rates have been reached)
+      const rateAlerts = await RateService.checkRateAlerts()
+      
+      // 2. Fetch system notifications from database
+      const { data: dbNotifications, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(10)
+        .limit(5)
 
-      if (error) throw error
-      
-      const realNotifications = data || []
-      const mockNotifications = realNotifications.length === 0 ? [
-        { id: '1', title: 'Rate Alert', message: 'Sarah Johnson\'s target rate of 6.95% has been reached', time: '5 min ago', read: false },
-        { id: '2', title: 'New Client', message: 'Mike Chen has been added to your pipeline', time: '1 hour ago', read: false },
-        { id: '3', title: 'Call Completed', message: 'Automated call to Lisa Rodriguez completed', time: '2 hours ago', read: true }
-      ] : realNotifications.map(n => ({
-        id: n.id, title: n.title, message: n.message, time: new Date(n.created_at).toLocaleString(), read: n.read
-      }))
-      
-      setNotifications(mockNotifications)
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching notifications:', error)
+      }
+
+      // 3. Combine rate alerts with system notifications
+      const allNotifications: Notification[] = []
+
+      // Add rate alerts as notifications
+      rateAlerts.forEach((alert) => {
+        allNotifications.push({
+          id: `rate_${alert.id}`,
+          title: '🎯 Target Rate Reached!',
+          message: `${alert.first_name} ${alert.last_name}'s target rate of ${alert.target_rate}% has been reached for ${alert.loan_type} loan`,
+          time: 'Just now',
+          read: false,
+          type: 'rate_alert',
+          client_id: alert.id
+        })
+      })
+
+      // Add database notifications
+      if (dbNotifications && dbNotifications.length > 0) {
+        dbNotifications.forEach((notif) => {
+          allNotifications.push({
+            id: notif.id,
+            title: notif.title || 'Notification',
+            message: notif.message || '',
+            time: formatTimeAgo(new Date(notif.created_at)),
+            read: notif.read || false,
+            type: notif.type || 'system'
+          })
+        })
+      }
+
+      // If no notifications, show welcome message
+      if (allNotifications.length === 0) {
+        allNotifications.push({
+          id: 'welcome',
+          title: '👋 Welcome!',
+          message: 'You\'re all set! We\'ll notify you when client target rates are reached.',
+          time: '1 hour ago',
+          read: true,
+          type: 'system'
+        })
+      }
+
+      setNotifications(allNotifications)
     } catch (error) {
       console.error('Error fetching notifications:', error)
-      setNotifications([
-        { id: '1', title: 'Welcome', message: 'Welcome to Rate Monitor Pro!', time: '1 hour ago', read: false }
-      ])
+      setNotifications([{
+        id: 'error',
+        title: '⚠️ Notice',
+        message: 'Unable to load notifications. Please refresh.',
+        time: 'Just now',
+        read: false,
+        type: 'system'
+      }])
+    } finally {
+      setLoading(false)
     }
   }
 
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+    return date.toLocaleDateString()
+  }
+
   const markAsRead = async (notificationId: string) => {
+    // Only mark database notifications as read (not rate alerts)
+    if (notificationId.startsWith('rate_')) {
+      // Rate alerts are ephemeral, just update UI
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      )
+      return
+    }
+
     try {
-      await supabase.from('notifications').update({ read: true }).eq('id', notificationId).eq('user_id', user?.id)
-      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n))
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId)
+        .eq('user_id', user?.id)
+
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      )
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
@@ -57,7 +144,14 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 
   const markAllAsRead = async () => {
     try {
-      await supabase.from('notifications').update({ read: true }).eq('user_id', user?.id).eq('read', false)
+      // Mark all database notifications as read
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user?.id)
+        .eq('read', false)
+
+      // Update all notifications in UI
       setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
@@ -66,75 +160,138 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 
   useEffect(() => {
     fetchNotifications()
+
+    // Refresh notifications every 5 minutes
+    const interval = setInterval(fetchNotifications, 5 * 60 * 1000)
+
+    return () => clearInterval(interval)
   }, [user])
-  
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showNotifications && !target.closest('.notification-panel')) {
+        setShowNotifications(false)
+      }
+    }
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showNotifications])
+
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 py-4 flex-shrink-0">
       <div className="flex items-center justify-between">
-        {/* ADDED: Hamburger Menu Button (Mobile Only) */}
+        {/* Mobile Menu Button */}
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-2 -ml-2 text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label="Open sidebar"
+          className="md:hidden p-2 -ml-2 text-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label="Toggle menu"
         >
           <Menu className="w-6 h-6" />
         </button>
 
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md ml-4 md:ml-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search clients, rates, or anything..."
-              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-            />
-          </div>
+        {/* Logo/Title (visible on mobile when menu is closed) */}
+        <div className="flex-1 md:flex-none">
+          <h1 className="text-lg font-bold text-gray-900 dark:text-white md:hidden">
+            Rate Monitor Pro
+          </h1>
         </div>
 
         {/* Right side actions */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <div className="relative">
-            <button 
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Notifications */}
+          <div className="relative notification-panel">
+            <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+              className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount}
+                <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
-            
+
             {showNotifications && (
-              <div className="absolute right-0 top-12 w-80 z-50">
-                <Card className="shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className="absolute right-0 top-14 w-80 sm:w-96 z-50">
+                <Card className="shadow-2xl border border-gray-200 dark:border-gray-700">
+                  {/* Header */}
                   <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-                    <button onClick={markAllAsRead} className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors">
-                      Mark all as read
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                        Notifications
+                      </h3>
+                      {unreadCount > 0 && (
+                        <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-medium rounded-full">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setShowNotifications(false)}
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                      aria-label="Close"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {/* Mark all as read */}
+                  {unreadCount > 0 && (
+                    <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Notifications List */}
                   <div className="max-h-96 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-gray-500 text-sm">No new notifications</div>
+                    {loading ? (
+                      <div className="p-8 text-center">
+                        <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-gray-500 mt-2">Loading...</p>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-8 text-center text-gray-500 text-sm">
+                        No notifications yet
+                      </div>
                     ) : (
                       notifications.map((notification) => (
-                        <div 
+                        <div
                           key={notification.id}
                           onClick={() => !notification.read && markAsRead(notification.id)}
-                          className={`p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${!notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
+                          className={`p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors ${
+                            !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                          }`}
                         >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">{notification.title}</h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{notification.message}</p>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-1">
+                                {notification.title}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed break-words">
+                                {notification.message}
+                              </p>
                               <p className="text-xs text-gray-500 mt-2">{notification.time}</p>
                             </div>
-                            {!notification.read && <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 ml-2 flex-shrink-0"></div>}
+                            {!notification.read && (
+                              <div className="w-2 h-2 bg-blue-600 rounded-full mt-1 flex-shrink-0" />
+                            )}
                           </div>
                         </div>
                       ))
@@ -145,14 +302,18 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             )}
           </div>
 
-          {/* User Profile - Hidden on extra-small screens */}
-          <div className="hidden sm:flex items-center space-x-3">
+          {/* User Profile - Hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-3">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{profile?.full_name || 'User'}</p>
-              <p className="text-xs text-gray-500 truncate">{profile?.company || 'Mortgage Professional'}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px]">
+                {profile?.full_name || 'User'}
+              </p>
+              <p className="text-xs text-gray-500 truncate max-w-[150px]">
+                {profile?.company || 'Mortgage Pro'}
+              </p>
             </div>
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="w-5 h-5 text-white" />
             </div>
           </div>
         </div>
