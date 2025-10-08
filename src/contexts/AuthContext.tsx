@@ -36,8 +36,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Listen to auth changes and handle auto-refresh
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event)
-      
       setUser(session?.user ?? null)
       
       if (session?.user) {
@@ -66,7 +64,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const now = Math.floor(Date.now() / 1000)
         // Refresh if within 10 minutes of expiry
         if (expiresAt && (expiresAt - now) < 600) {
-          console.log('Proactively refreshing session')
           await supabase.auth.refreshSession()
         }
       }
@@ -83,11 +80,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.from('profiles').update({ email: user.email }).eq('id', user.id)
       if (!error) {
-        console.log('Profile email synced:', user.email)
         await fetchProfile(user.id)
       }
     } catch (error) {
-      console.error('Error syncing email:', error)
+      // Silent fail - not critical
     }
   }
 
@@ -99,22 +95,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (error && error.code === 'PGRST116') {
         const { data: userData } = await supabase.auth.getUser()
         if (userData.user) {
-          const newProfile = { id: userData.user.id, email: userData.user.email, full_name: userData.user.user_metadata?.full_name || null, company: null, phone: null }
-          const { data: createdProfile, error: createError } = await supabase.from('profiles').insert(newProfile).select().single()
+          const newProfile = { 
+            id: userData.user.id, 
+            email: userData.user.email, 
+            full_name: userData.user.user_metadata?.full_name || null, 
+            company: null, 
+            phone: null 
+          }
+          const { data: createdProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert(newProfile)
+            .select()
+            .single()
           if (createdProfile && !createError) setProfile(createdProfile)
-          else console.error('Error creating profile:', createError)
         }
-      } else {
-        console.error('Error fetching profile:', error)
       }
     } catch (error) {
-      console.error('Error in fetchProfile:', error)
+      // Silent fail - not critical
     }
   }
 
   const signUp = async (email: string, password: string, userData: any) => {
-    const redirectTo = import.meta.env.VITE_APP_ENV === 'development' ? 'http://localhost:5173/auth/callback' : `${window.location.origin}/auth/callback`
-    const { data, error } = await supabase.auth.signUp({ email, password, options: { data: userData, emailRedirectTo: redirectTo } })
+    const redirectTo = import.meta.env.VITE_APP_ENV === 'development' 
+      ? 'http://localhost:5173/auth/callback' 
+      : `${window.location.origin}/auth/callback`
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password, 
+      options: { data: userData, emailRedirectTo: redirectTo } 
+    })
     return { data, error }
   }
 
@@ -128,41 +137,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) {
-      console.error('No user found for profile update')
-      return
-    }
+    if (!user) return
+    
     try {
-      console.log('Updating profile with:', updates)
-      const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select().single()
-      if (error) {
-        console.error('Error updating profile:', error)
-        throw error
-      }
-      if (data) {
-        console.log('Profile updated successfully:', data)
-        setProfile(data)
-      }
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id)
+        .select()
+        .single()
+      
+      if (error) throw error
+      if (data) setProfile(data)
     } catch (error) {
-      console.error('Error in updateProfile:', error)
       throw error
     }
   }
 
   const updateEmail = async (newEmail: string) => {
     try {
-      console.log('Updating email to:', newEmail)
-      const redirectTo = import.meta.env.VITE_APP_ENV === 'development' ? 'http://localhost:5173/auth/callback' : `${window.location.origin}/auth/callback`
-      const { error } = await supabase.auth.updateUser({ email: newEmail }, { emailRedirectTo: redirectTo })
-      if (error) console.error('Error updating email:', error)
+      const redirectTo = import.meta.env.VITE_APP_ENV === 'development' 
+        ? 'http://localhost:5173/auth/callback' 
+        : `${window.location.origin}/auth/callback`
+      const { error } = await supabase.auth.updateUser(
+        { email: newEmail }, 
+        { emailRedirectTo: redirectTo }
+      )
       return { error }
     } catch (error) {
-      console.error('Error in updateEmail:', error)
       return { error }
     }
   }
 
-  const value: AuthContextType = { user, profile, loading, signUp, signIn, signOut, updateProfile, updateEmail }
+  const value: AuthContextType = { 
+    user, 
+    profile, 
+    loading, 
+    signUp, 
+    signIn, 
+    signOut, 
+    updateProfile, 
+    updateEmail 
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

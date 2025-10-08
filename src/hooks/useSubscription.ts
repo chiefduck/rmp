@@ -20,18 +20,34 @@ interface StripeSubscription {
 
 export const useSubscription = () => {
   const { user } = useAuth()
+  const userId = user?.id ?? null
+  
   const [subscription, setSubscription] = useState<StripeSubscription | null>(null)
-  const [loading, setLoading] = useState(true)
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const [internalLoading, setInternalLoading] = useState(true)
   const isFetchingRef = useRef(false)
+  const userIdRef = useRef<string | null>(null)
+  
+  // If userId just changed and we have a user, force loading=true
+  // This prevents the race condition where ProtectedRoute sees loading=false before useEffect runs
+  const loading = (userId !== userIdRef.current && userId !== null) || internalLoading
 
   useEffect(() => {
-    setLoading(true)
-    setSubscription(null)
-    setHasActiveSubscription(false)
-
-    if (!user) {
-      setLoading(false)
+    const currentUserId = userId
+    
+    // Only re-run if the USER ID actually changed
+    if (currentUserId === userIdRef.current && userIdRef.current !== null) {
+      return
+    }
+    
+    userIdRef.current = currentUserId
+    setInternalLoading(true)
+    
+    if (!currentUserId) {
+      setSubscription(null)
+      setHasActiveSubscription(false)
+      setInternalLoading(false)
+      isFetchingRef.current = false
       return
     }
 
@@ -43,7 +59,7 @@ export const useSubscription = () => {
         const { data: customerData, error: customerError } = await supabase
           .from('stripe_customers')
           .select('customer_id')
-          .eq('user_id', user.id)
+          .eq('user_id', currentUserId)
           .is('deleted_at', null)
           .maybeSingle()
 
@@ -52,7 +68,7 @@ export const useSubscription = () => {
         if (!customerData) {
           setSubscription(null)
           setHasActiveSubscription(false)
-          setLoading(false)
+          setInternalLoading(false)
           return
         }
 
@@ -66,8 +82,8 @@ export const useSubscription = () => {
         if (subscriptionError) throw subscriptionError
 
         if (subscriptionData) {
-          setSubscription(subscriptionData)
           const isActive = ['active', 'trialing'].includes(subscriptionData.status)
+          setSubscription(subscriptionData)
           setHasActiveSubscription(isActive)
         } else {
           setSubscription(null)
@@ -78,7 +94,7 @@ export const useSubscription = () => {
         setSubscription(null)
         setHasActiveSubscription(false)
       } finally {
-        setLoading(false)
+        setInternalLoading(false)
         isFetchingRef.current = false
       }
     }
@@ -88,6 +104,7 @@ export const useSubscription = () => {
     const subscription_channel = supabase
       .channel('stripe_subscriptions_updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stripe_subscriptions' }, () => {
+        isFetchingRef.current = false
         fetchSubscription()
       })
       .subscribe()
@@ -95,7 +112,7 @@ export const useSubscription = () => {
     return () => {
       subscription_channel.unsubscribe()
     }
-  }, [user])
+  }, [userId])
 
   return { subscription, loading, hasActiveSubscription }
 }

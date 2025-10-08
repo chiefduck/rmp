@@ -42,7 +42,6 @@ const Dashboard: React.FC = () => {
     fetchDashboardData();
     
     // ✅ REAL-TIME RATE SUBSCRIPTION
-    console.log('Setting up real-time rate subscription on dashboard...')
     const rateSubscription = supabase
       .channel('dashboard_rate_updates')
       .on(
@@ -53,7 +52,6 @@ const Dashboard: React.FC = () => {
           table: 'rate_history'
         },
         (payload) => {
-          console.log('🔔 Dashboard: New rate data received!', payload)
           info('Market rates updated!')
           fetchDashboardData()
           setRefreshTrigger(prev => prev + 1)
@@ -113,7 +111,6 @@ const Dashboard: React.FC = () => {
       
       setRateHistory(historyData?.map(trend => ({ date: trend.date, rate: trend.rate })) || []);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
     }
   };
   
@@ -133,7 +130,7 @@ const Dashboard: React.FC = () => {
         info('⚠️ Could not fetch fresh data, showing latest available rates');
       }
     } catch (error) {
-      console.error('Error refreshing rates:', error);
+
       await fetchDashboardData();
     } finally {
       setIsRefreshing(false);

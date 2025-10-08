@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
@@ -21,18 +21,12 @@ import { Loader2 } from 'lucide-react'
 
 // Simple component to handle landing page logic
 const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = ({ onShowAuth, onGetStarted }) => {
-  const { user } = useAuth()
-  const { hasActiveSubscription, loading } = useSubscription()
-
-  console.log('Landing component render - should ONLY show when on / route:', {
-    path: window.location.pathname,
-    hasUser: !!user,
-    hasActiveSubscription,
-    loading
-  })
+  const { user, loading: authLoading } = useAuth()
+  const { hasActiveSubscription, loading: subLoading } = useSubscription()
+  const location = useLocation()
 
   // Show loader while checking subscription (only if logged in)
-  if (user && loading) {
+  if (authLoading || (user && subLoading)) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -40,13 +34,10 @@ const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = 
     )
   }
 
-  // Redirect to dashboard if logged in with active subscription
-  if (user && hasActiveSubscription) {
-    console.log('Landing: Redirecting to dashboard')
+  // Only redirect to dashboard if we're actually on the "/" route
+  if (user && hasActiveSubscription && location.pathname === '/') {
     return <Navigate to="/dashboard" replace />
   }
-
-  console.log('Landing: Showing landing page')
 
   // Show landing page (logged out OR logged in without subscription)
   return (
@@ -55,6 +46,41 @@ const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = 
       onGetStarted={onGetStarted}
     />
   )
+}
+
+// ✅ NEW: Smart catch-all that waits for auth to load before redirecting
+const CatchAll: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = ({ onShowAuth, onGetStarted }) => {
+  const { user, loading: authLoading } = useAuth()
+  const { hasActiveSubscription, loading: subLoading } = useSubscription()
+  const location = useLocation()
+
+  console.log('🔀 CatchAll route hit:', {
+    path: location.pathname,
+    authLoading,
+    subLoading,
+    hasUser: !!user,
+    hasActiveSubscription
+  })
+
+  // ✅ CRITICAL: Show loader during auth check to prevent premature redirects
+  if (authLoading || subLoading) {
+    console.log('🔀 CatchAll: Auth/Sub loading, showing loader')
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  // If authenticated with subscription, redirect to dashboard
+  if (user && hasActiveSubscription) {
+    console.log('🔀 CatchAll: Authenticated user, redirecting to dashboard')
+    return <Navigate to="/dashboard" replace />
+  }
+
+  // Otherwise, show landing page
+  console.log('🔀 CatchAll: Not authenticated or no subscription, showing landing')
+  return <Landing onShowAuth={onShowAuth} onGetStarted={onGetStarted} />
 }
 
 const AppContent: React.FC = () => {
@@ -94,8 +120,16 @@ const AppContent: React.FC = () => {
           <Route path="/billing" element={<Billing />} />
         </Route>
         
-        {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* ✅ FIXED: Catch all - waits for auth before redirecting */}
+        <Route 
+          path="*" 
+          element={
+            <CatchAll 
+              onShowAuth={() => openAuthModal('signin')} 
+              onGetStarted={() => openAuthModal('signup')}
+            />
+          } 
+        />
       </Routes>
       
       <AuthModal 

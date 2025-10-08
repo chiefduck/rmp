@@ -70,11 +70,10 @@ export const RateMonitor: React.FC = () => {
     fetchRates()
     fetchRealAlerts()
 
-    console.log('Setting up real-time rate subscription...')
+
     const rateSubscription = supabase
       .channel('rate_updates')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rate_history' }, (payload) => {
-        console.log('🔔 New rate data received!', payload)
         info('New rates available! Updating...')
         fetchRates()
         fetchRealAlerts()
@@ -83,14 +82,12 @@ export const RateMonitor: React.FC = () => {
       .subscribe()
 
     const refreshInterval = setInterval(() => {
-      console.log('Auto-refreshing rate data...')
       fetchRates()
       fetchRealAlerts()
       setLastRefresh(new Date())
     }, 15 * 60 * 1000)
 
     const handleFocus = () => {
-      console.log('Window focused - refreshing rates')
       fetchRates()
       fetchRealAlerts()
       setLastRefresh(new Date())
@@ -100,7 +97,7 @@ export const RateMonitor: React.FC = () => {
     return () => {
       rateSubscription.unsubscribe()
       clearInterval(refreshInterval)
-      window.removeEventListener('focus', handleFocus)
+    window.removeEventListener('focus', handleFocus)
     }
   }, [])
 
