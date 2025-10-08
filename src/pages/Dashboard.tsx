@@ -28,7 +28,7 @@ interface DashboardStats {
   pipelineValue: number;
 }
 
-export const Dashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { info } = useToast();
   const navigate = useNavigate();
@@ -117,14 +117,24 @@ export const Dashboard: React.FC = () => {
     }
   };
   
-  // ✅ FIXED: Only re-fetch from DB
+  // ✅ Manual refresh triggers fresh scrape from MND
   const handleRefreshRates = async () => {
     setIsRefreshing(true);
     try {
-      await fetchDashboardData();
-      info('Dashboard refreshed successfully!');
+      info('Fetching fresh rates from MND...')
+      const freshDataSuccess = await RateService.fetchFreshRates();
+      
+      if (freshDataSuccess) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        await fetchDashboardData();
+        info('✅ Fresh rates updated successfully!');
+      } else {
+        await fetchDashboardData();
+        info('⚠️ Could not fetch fresh data, showing latest available rates');
+      }
     } catch (error) {
       console.error('Error refreshing rates:', error);
+      await fetchDashboardData();
     } finally {
       setIsRefreshing(false);
     }
@@ -181,7 +191,7 @@ export const Dashboard: React.FC = () => {
   ], [stats]);
 
   const quickActions = [
-    { label: 'Add Client', icon: Users, onClick: () => navigate('/crm'), className: 'bg-blue-50/50 dark:bg-blue-900/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30', iconClass: 'text-blue-600', textClass: 'text-blue-900 dark:text-blue-300' },
+    { label: 'Add Client', icon: Users, onClick: () => navigate('/crm', { state: { openAddModal: true } }), className: 'bg-blue-50/50 dark:bg-blue-900/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30', iconClass: 'text-blue-600', textClass: 'text-blue-900 dark:text-blue-300' },
     { label: 'Start Calling', icon: Phone, onClick: () => navigate('/calling'), className: 'bg-green-50/50 dark:bg-green-900/20 hover:bg-green-100/70 dark:hover:bg-green-900/30', iconClass: 'text-green-600', textClass: 'text-green-900 dark:text-green-300' },
     { label: 'View Rates', icon: TrendingDown, onClick: () => navigate('/rates'), className: 'bg-purple-50/50 dark:bg-purple-900/20 hover:bg-purple-100/70 dark:hover:bg-purple-900/30', iconClass: 'text-purple-600', textClass: 'text-purple-900 dark:text-purple-300' },
     { label: 'AI Assistant', icon: Mail, onClick: () => navigate('/ai-assistant'), className: 'bg-orange-50/50 dark:bg-orange-900/20 hover:bg-orange-100/70 dark:hover:bg-orange-900/30', iconClass: 'text-orange-600', textClass: 'text-orange-900 dark:text-orange-300' },
@@ -189,7 +199,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-20 md:pb-6 p-4 md:p-0">
-      
+      {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
         <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white">
           <div className="flex flex-col md:flex-row md:justify-between md:items-start space-y-4 md:space-y-0">
@@ -202,7 +212,11 @@ export const Dashboard: React.FC = () => {
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 <span>Live Updates</span>
               </div>
-              <button onClick={handleRefreshRates} disabled={isRefreshing} className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 w-auto justify-center">
+              <button 
+                onClick={handleRefreshRates} 
+                disabled={isRefreshing} 
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 min-h-[44px] active:scale-95"
+              >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span className="text-sm font-medium">Refresh</span>
               </button>
@@ -211,6 +225,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Rate Widgets - Responsive Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         {rateWidgets.map((rate) => {
           const ChangeIcon = getChangeIcon(rate.change);
@@ -243,6 +258,7 @@ export const Dashboard: React.FC = () => {
         })}
       </div>
 
+      {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {statCards.map(card => (
           <div key={card.title} className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
@@ -260,11 +276,16 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
+      {/* Quick Actions */}
       <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {quickActions.map(action => (
-            <button key={action.label} onClick={action.onClick} className={`flex flex-col items-center p-3 md:p-4 rounded-xl transition-all duration-200 backdrop-blur-sm ${action.className}`}>
+            <button 
+              key={action.label} 
+              onClick={action.onClick} 
+              className={`flex flex-col items-center p-3 md:p-4 rounded-xl transition-all duration-200 backdrop-blur-sm min-h-[88px] active:scale-95 ${action.className}`}
+            >
               <action.icon className={`w-6 h-6 md:w-8 md:h-8 mb-2 ${action.iconClass}`} />
               <span className={`text-xs md:text-sm font-medium text-center ${action.textClass}`}>{action.label}</span>
             </button>
@@ -272,15 +293,17 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Charts - Compact Heights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden">
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
           <RateChart data={rateHistory} title="30yr Fixed Rate Trends (Last 30 Days)" />
         </div>
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden">
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
           <RecentActivity refreshTrigger={refreshTrigger} />
         </div>
       </div>
-
     </div>
   );
 };
+
+export default Dashboard;

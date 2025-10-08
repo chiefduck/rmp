@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, AlertCircle, RefreshCw, Activity, Bell, Target, Clock } from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertCircle, RefreshCw, Activity, Clock } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import HistoricalRateChart from '../components/RateMonitor/HistoricalRateChart'
@@ -20,56 +20,78 @@ interface RateDisplayData {
   change_1_year?: number
 }
 
+// Mobile-friendly rate card component
+const MobileRateCard = ({ rate, getLoanTypeLabel, formatChange }: any) => (
+  <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 space-y-3">
+    <div className="flex items-center justify-between">
+      <h4 className="font-semibold text-gray-900 dark:text-gray-100">{getLoanTypeLabel(rate.loan_type)}</h4>
+      <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{rate.rate.toFixed(2)}%</div>
+    </div>
+    
+    <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2">
+        <span className="text-gray-600 dark:text-gray-400 text-xs block mb-1">1 Day</span>
+        {formatChange(rate.change)}
+      </div>
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2">
+        <span className="text-gray-600 dark:text-gray-400 text-xs block mb-1">1 Week</span>
+        {formatChange(rate.change_1_week)}
+      </div>
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2">
+        <span className="text-gray-600 dark:text-gray-400 text-xs block mb-1">1 Month</span>
+        {formatChange(rate.change_1_month)}
+      </div>
+      <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-2">
+        <span className="text-gray-600 dark:text-gray-400 text-xs block mb-1">1 Year</span>
+        {formatChange(rate.change_1_year)}
+      </div>
+    </div>
+    
+    {rate.range_52_week_low && rate.range_52_week_high && (
+      <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+        <span className="text-xs text-gray-600 dark:text-gray-400">52-Week Range:</span>
+        <div className="font-medium text-sm text-gray-900 dark:text-gray-100">
+          {rate.range_52_week_low.toFixed(2)}% - {rate.range_52_week_high.toFixed(2)}%
+        </div>
+      </div>
+    )}
+  </div>
+)
+
 export const RateMonitor: React.FC = () => {
   const { info } = useToast()
   const [rates, setRates] = useState<RateDisplayData[]>([])
   const [loading, setLoading] = useState(false)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [dataLastUpdated, setDataLastUpdated] = useState<string>('')
-  const [rateHistory, setRateHistory] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
 
   useEffect(() => {
     fetchRates()
-    fetchRateHistory()
     fetchRealAlerts()
 
-    // ✅ REAL-TIME SUBSCRIPTION - Updates instantly when GitHub Action adds new rates
     console.log('Setting up real-time rate subscription...')
     const rateSubscription = supabase
       .channel('rate_updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'rate_history'
-        },
-        (payload) => {
-          console.log('🔔 New rate data received!', payload)
-          info('New rates available! Updating...')
-          fetchRates()
-          fetchRateHistory()
-          fetchRealAlerts()
-          setLastRefresh(new Date())
-        }
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rate_history' }, (payload) => {
+        console.log('🔔 New rate data received!', payload)
+        info('New rates available! Updating...')
+        fetchRates()
+        fetchRealAlerts()
+        setLastRefresh(new Date())
+      })
       .subscribe()
 
-    // Auto-refresh every 15 minutes as backup
     const refreshInterval = setInterval(() => {
       console.log('Auto-refreshing rate data...')
       fetchRates()
-      fetchRateHistory()
       fetchRealAlerts()
       setLastRefresh(new Date())
     }, 15 * 60 * 1000)
 
-    // Refresh on window focus
     const handleFocus = () => {
       console.log('Window focused - refreshing rates')
       fetchRates()
-      fetchRateHistory()
       fetchRealAlerts()
       setLastRefresh(new Date())
     }
@@ -140,15 +162,6 @@ export const RateMonitor: React.FC = () => {
     }
   }
 
-  const fetchRateHistory = async () => {
-    try {
-      const history = await RateService.getRateHistory(30, 'conventional', 30)
-      setRateHistory(history)
-    } catch (error) {
-      console.error('Error fetching rate history:', error)
-    }
-  }
-
   const fetchRealAlerts = async () => {
     try {
       const rateAlerts = await RateService.checkRateAlerts()
@@ -202,7 +215,6 @@ export const RateMonitor: React.FC = () => {
     }
   }
 
-  // ✅ Manual refresh triggers fresh scrape from MND
   const refreshRates = async () => {
     setLoading(true)
     try {
@@ -210,26 +222,20 @@ export const RateMonitor: React.FC = () => {
       const freshDataSuccess = await RateService.fetchFreshRates()
       
       if (freshDataSuccess) {
-        // Wait a bit for data to be written to DB
         await new Promise(resolve => setTimeout(resolve, 2000))
         await fetchRates()
-        await fetchRateHistory()
         await fetchRealAlerts()
         setLastRefresh(new Date())
         info('✅ Fresh rates updated successfully!')
       } else {
-        // Fallback to just re-fetching existing data
         await fetchRates()
-        await fetchRateHistory()
         await fetchRealAlerts()
         setLastRefresh(new Date())
         info('⚠️ Could not fetch fresh data, showing latest available rates')
       }
     } catch (error) {
       console.error('Error refreshing rates:', error)
-      // Still try to show existing data
       await fetchRates()
-      await fetchRateHistory()
       await fetchRealAlerts()
     } finally {
       setLoading(false)
@@ -250,55 +256,67 @@ export const RateMonitor: React.FC = () => {
   const formatDateTime = (date: Date) => date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
   const formatDateOnly = (dateString: string) => new Date(dateString + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+  const formatChange = (change: number | undefined) => {
+    if (change === undefined || change === null) return <span className="text-gray-400 dark:text-gray-500">--</span>
+    if (change === 0) return <span className="text-blue-600 dark:text-blue-400 font-medium">+0.00%</span>
+    const isPositive = change > 0
+    return <span className={`font-medium ${isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>{isPositive ? '+' : ''}{change.toFixed(2)}%</span>
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Rate Monitor</h1>
-          <div className="flex items-center gap-4 mt-2">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Clock className="w-4 h-4" />
+    <div className="space-y-4 md:space-y-6">
+      {/* Header - Stacked on mobile */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">Rate Monitor</h1>
+          
+          {/* Badges - Stack vertically on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 dark:text-gray-400">
+              <Clock className="w-3 h-3 md:w-4 md:h-4" />
               <span>Last refreshed: {formatDateTime(lastRefresh)}</span>
             </div>
             {dataLastUpdated && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+              <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 px-2 md:px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg w-fit">
+                <Activity className="w-3 h-3 md:w-4 md:h-4 text-blue-600 dark:text-blue-400 animate-pulse" />
                 <span className="font-medium text-blue-900 dark:text-blue-300">MND Data: {formatDateOnly(dataLastUpdated)}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="flex items-center gap-2 text-xs text-green-600 dark:text-green-400 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-lg w-fit">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span>Live Updates</span>
             </div>
           </div>
         </div>
-        <Button onClick={refreshRates} loading={loading}>
+        
+        <Button onClick={refreshRates} loading={loading} className="w-full sm:w-auto">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Rate Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {rates.map((rate) => (
           <Card key={rate.loan_type} hover>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">{getLoanTypeLabel(rate.loan_type)}</h3>
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <h3 className="font-semibold text-sm md:text-base text-gray-900 dark:text-gray-100">{getLoanTypeLabel(rate.loan_type)}</h3>
                 <div className={`flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium ${rate.trend === 'up' ? 'bg-red-100 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'bg-green-100 text-green-600 dark:bg-green-900/20 dark:text-green-400'}`}>
                   {rate.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                   {Math.abs(rate.change).toFixed(3)}%
                 </div>
               </div>
-              <div className="mb-4">
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">{rate.rate.toFixed(2)}%</div>
-                <p className="text-sm text-gray-500">Updated {rate.lastUpdate}</p>
+              <div className="mb-3 md:mb-4">
+                <div className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">{rate.rate.toFixed(2)}%</div>
+                <p className="text-xs md:text-sm text-gray-500">Updated {rate.lastUpdate}</p>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-gray-600 dark:text-gray-400">52-week high:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{rate.range_52_week_high ? `${rate.range_52_week_high.toFixed(2)}%` : '--'}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between text-xs md:text-sm">
                   <span className="text-gray-600 dark:text-gray-400">52-week low:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">{rate.range_52_week_low ? `${rate.range_52_week_low.toFixed(2)}%` : '--'}</span>
                 </div>
@@ -308,17 +326,19 @@ export const RateMonitor: React.FC = () => {
         ))}
       </div>
 
-      <HistoricalRateChart height={500} variant="full" title="Historical Rate Analytics" className="shadow-lg" />
+      {/* Historical Rate Chart */}
+      <HistoricalRateChart height={300} variant="full" title="Historical Rate Analytics" className="shadow-lg" />
 
+      {/* Rate Alerts */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-orange-600" />
+          <CardTitle className="flex items-center space-x-2 text-base md:text-lg">
+            <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-orange-600" />
             <span>Rate Alerts</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {alerts.map((alert) => {
               const colors = {
                 success: 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20',
@@ -326,10 +346,10 @@ export const RateMonitor: React.FC = () => {
                 info: 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
               }
               return (
-                <div key={alert.id} className={`p-4 rounded-xl border ${colors[alert.type as keyof typeof colors] || 'border-gray-200 bg-gray-50'}`}>
-                  <div className="flex items-start justify-between">
-                    <p className="text-sm text-gray-900 dark:text-gray-100 flex-1">{alert.message}</p>
-                    <span className="text-xs text-gray-500 ml-4 whitespace-nowrap">{alert.time}</span>
+                <div key={alert.id} className={`p-3 md:p-4 rounded-xl border ${colors[alert.type as keyof typeof colors] || 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs md:text-sm text-gray-900 dark:text-gray-100 flex-1">{alert.message}</p>
+                    <span className="text-xs text-gray-500 whitespace-nowrap">{alert.time}</span>
                   </div>
                 </div>
               )
@@ -338,50 +358,57 @@ export const RateMonitor: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Rate Comparison - Mobile Cards, Desktop Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Rate Comparison - Live Market Data</CardTitle>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Real-time data from Mortgage News Daily - updates automatically</p>
+          <CardTitle className="text-base md:text-lg">Rate Comparison - Live Market Data</CardTitle>
+          <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">Real-time data from Mortgage News Daily - updates automatically</p>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* Mobile View - Cards */}
+          <div className="md:hidden space-y-3">
+            {rates.map((rate) => (
+              <MobileRateCard 
+                key={rate.loan_type}
+                rate={rate}
+                getLoanTypeLabel={getLoanTypeLabel}
+                formatChange={formatChange}
+              />
+            ))}
+          </div>
+
+          {/* Desktop View - Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-700">
                   {['Loan Type', 'Current', '1 day', '1 week', '1 month', '1 year', '52 Week Range'].map(h => (
-                    <th key={h} className="text-left py-3 font-medium text-gray-900 dark:text-gray-100">{h}</th>
+                    <th key={h} className="text-left py-3 px-2 font-medium text-sm text-gray-900 dark:text-gray-100">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {rates.map((rate) => {
-                  const formatChange = (change: number | undefined) => {
-                    if (change === undefined || change === null) return <span className="text-gray-400">--</span>
-                    if (change === 0) return <span className="text-blue-600 dark:text-blue-400">+0.00%</span>
-                    const isPositive = change > 0
-                    return <span className={isPositive ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>{isPositive ? '+' : ''}{change.toFixed(2)}%</span>
-                  }
-                  return (
-                    <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
-                      <td className="py-4 font-medium text-gray-900 dark:text-gray-100">{getLoanTypeLabel(rate.loan_type)}</td>
-                      <td className="py-4 text-gray-900 dark:text-gray-100 text-lg font-bold">{rate.rate.toFixed(2)}%</td>
-                      <td className="py-4">{formatChange(rate.change)}</td>
-                      <td className="py-4">{formatChange(rate.change_1_week)}</td>
-                      <td className="py-4">{formatChange(rate.change_1_month)}</td>
-                      <td className="py-4">{formatChange(rate.change_1_year)}</td>
-                      <td className="py-4 text-sm text-gray-600 dark:text-gray-400">
-                        {rate.range_52_week_low && rate.range_52_week_high ? `${rate.range_52_week_low.toFixed(2)}% - ${rate.range_52_week_high.toFixed(2)}%` : <span className="text-gray-400 italic">Updating...</span>}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {rates.map((rate) => (
+                  <tr key={rate.loan_type} className="border-b border-gray-100 dark:border-gray-800">
+                    <td className="py-4 px-2 font-medium text-gray-900 dark:text-gray-100">{getLoanTypeLabel(rate.loan_type)}</td>
+                    <td className="py-4 px-2 text-gray-900 dark:text-gray-100 text-lg font-bold">{rate.rate.toFixed(2)}%</td>
+                    <td className="py-4 px-2">{formatChange(rate.change)}</td>
+                    <td className="py-4 px-2">{formatChange(rate.change_1_week)}</td>
+                    <td className="py-4 px-2">{formatChange(rate.change_1_month)}</td>
+                    <td className="py-4 px-2">{formatChange(rate.change_1_year)}</td>
+                    <td className="py-4 px-2 text-sm text-gray-600 dark:text-gray-400">
+                      {rate.range_52_week_low && rate.range_52_week_high ? `${rate.range_52_week_low.toFixed(2)}% - ${rate.range_52_week_high.toFixed(2)}%` : <span className="text-gray-400 italic">Updating...</span>}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-          <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-            * Data sourced directly from Mortgage News Daily Rate Index<br />
-            * Red = rate increase, Green = rate decrease, Blue = no change<br />
-            * Updates automatically via real-time subscription
+          
+          <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+            <p>* Data sourced directly from Mortgage News Daily Rate Index</p>
+            <p>* Red = rate increase, Green = rate decrease, Blue = no change</p>
+            <p>* Updates automatically via real-time subscription</p>
           </div>
         </CardContent>
       </Card>

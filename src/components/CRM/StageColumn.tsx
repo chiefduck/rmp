@@ -9,6 +9,9 @@ interface Stage {
   count: number
 }
 
+// IMPORTANT: When using this component in ActivePipelineSection.tsx,
+// make sure to pass onUpdateStage as a prop to StageColumn
+
 interface StageColumnProps {
   stage: Stage
   clients: Client[]
@@ -16,6 +19,7 @@ interface StageColumnProps {
   onEditClient: (client: Client) => void
   onViewDetails: (client: Client) => void
   onDeleteClient: (client: Client) => void
+  onUpdateStage: (clientId: string, newStage: string, previousStage: string) => void
   onArchiveClient?: (client: Client) => void
   onRestoreClient?: (client: Client) => void
   showArchiveButton?: boolean
@@ -32,6 +36,7 @@ export const StageColumn: React.FC<StageColumnProps> = ({
   onEditClient,
   onViewDetails,
   onDeleteClient,
+  onUpdateStage,
   onArchiveClient,
   onRestoreClient,
   showArchiveButton = false,
@@ -49,6 +54,13 @@ export const StageColumn: React.FC<StageColumnProps> = ({
     e.preventDefault()
     console.log('Drop triggered for stage:', stage.id, 'Client:', draggedClient?.first_name)
     onDrop(stage.id)
+  }
+
+  // Handle mobile stage change - directly call onUpdateStage
+  const handleMobileStageChange = (client: Client, newStage: string) => {
+    if (newStage !== client.current_stage) {
+      onUpdateStage(client.id, newStage, client.current_stage)
+    }
   }
 
   return (
@@ -78,11 +90,7 @@ export const StageColumn: React.FC<StageColumnProps> = ({
             onDelete={() => onDeleteClient(client)}
             onArchive={onArchiveClient ? () => onArchiveClient(client) : undefined}
             onRestore={onRestoreClient ? () => onRestoreClient(client) : undefined}
-            onStageChange={(newStage) => {
-              onDragStart(client)
-              onDrop(newStage)
-              onDragEnd()
-            }}
+            onStageChange={(newStage) => handleMobileStageChange(client, newStage)}
             showArchiveButton={showArchiveButton}
             showRestoreButton={showRestoreButton}
             onDragStart={() => onDragStart(client)}

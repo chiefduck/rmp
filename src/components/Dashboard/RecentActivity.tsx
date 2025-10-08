@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Clock, TrendingUp, TrendingDown, Phone, Mail, User, Target, AlertCircle } from 'lucide-react'
-import { Card, CardHeader, CardContent, CardTitle } from '../ui/Card'
+import { Clock, TrendingUp, Phone, Mail, User, Target, AlertCircle, Activity } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
-interface Activity {
+interface ActivityItem {
   id: string
   type: 'rate_alert' | 'client_update' | 'call_made' | 'email_sent' | 'rate_change' | 'new_client' | 'stage_change'
   message: string
@@ -18,7 +17,7 @@ interface Activity {
 
 export const RecentActivity: React.FC<{ refreshTrigger?: number }> = ({ refreshTrigger }) => {
   const { user } = useAuth()
-  const [activities, setActivities] = useState<Activity[]>([])
+  const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -27,143 +26,134 @@ export const RecentActivity: React.FC<{ refreshTrigger?: number }> = ({ refreshT
     }
   }, [user, refreshTrigger])
 
-// In RecentActivity.tsx, replace the fetchRecentActivity function with this:
+  const fetchRecentActivity = async () => {
+    if (!user) return
 
-const fetchRecentActivity = async () => {
-  if (!user) return
+    try {
+      const activities: ActivityItem[] = []
+      const now = new Date()
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-  try {
-    const activities: Activity[] = []
-    const now = new Date()
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      // 1. Fetch new clients
+      const { data: newClients } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, created_at')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .gte('created_at', sevenDaysAgo.toISOString())
+        .order('created_at', { ascending: false })
 
-    // 1. Fetch new clients added in last 7 days - EXCLUDE deleted
-    const { data: newClients } = await supabase
-      .from('clients')
-      .select('id, first_name, last_name, created_at')
-      .eq('user_id', user.id)
-      .is('deleted_at', null) // ← ADDED
-      .gte('created_at', sevenDaysAgo.toISOString())
-      .order('created_at', { ascending: false })
-
-    newClients?.forEach(client => {
-      activities.push({
-        id: `new_client_${client.id}`,
-        type: 'new_client',
-        message: `Added new client ${client.first_name} ${client.last_name}`,
-        timestamp: formatTimeAgo(new Date(client.created_at)),
-        status: 'success',
-        client_name: `${client.first_name} ${client.last_name}`
-      })
-    })
-
-    // 2. Fetch significant rate changes (±0.125% or more)
-    const { data: recentRates } = await supabase
-      .from('rate_history')
-      .select('rate_date, rate_value, change_1_day, created_at')
-      .eq('term_years', 30)
-      .eq('loan_type', 'conventional')
-      .gte('rate_date', sevenDaysAgo.toISOString().split('T')[0])
-      .order('rate_date', { ascending: false })
-      .limit(3)
-
-    recentRates?.forEach(rate => {
-      if (rate.change_1_day && Math.abs(rate.change_1_day) >= 0.125) {
-        const changeDirection = rate.change_1_day > 0 ? 'increased' : 'dropped'
+      newClients?.forEach(client => {
         activities.push({
-          id: `rate_change_${rate.rate_date}`,
-          type: 'rate_change',
-          message: `30yr rates ${changeDirection} to ${rate.rate_value.toFixed(3)}%`,
-          timestamp: formatTimeAgo(new Date(rate.created_at || rate.rate_date)),
-          status: rate.change_1_day > 0 ? 'warning' : 'success',
-          rate_value: rate.rate_value
+          id: `new_client_${client.id}`,
+          type: 'new_client',
+          message: `Added ${client.first_name} ${client.last_name}`,
+          timestamp: formatTimeAgo(new Date(client.created_at)),
+          status: 'success',
+          client_name: `${client.first_name} ${client.last_name}`
         })
-      }
-    })
+      })
 
-    // 3. Check for clients whose target rates were recently met - EXCLUDE deleted
-    const { data: clientsWithTargets } = await supabase
-      .from('clients')
-      .select('id, first_name, last_name, target_rate, loan_type, updated_at')
-      .eq('user_id', user.id)
-      .is('deleted_at', null) // ← ADDED
-      .not('target_rate', 'is', null)
+      // 2. Fetch rate changes
+      const { data: recentRates } = await supabase
+        .from('rate_history')
+        .select('rate_date, rate_value, change_1_day, created_at')
+        .eq('term_years', 30)
+        .eq('loan_type', 'conventional')
+        .gte('rate_date', sevenDaysAgo.toISOString().split('T')[0])
+        .order('rate_date', { ascending: false })
+        .limit(3)
 
-    // Get latest rates to check against targets
-    const { data: latestRates } = await supabase
-      .from('rate_history')
-      .select('rate_value, term_years, loan_type, rate_date')
-      .order('rate_date', { ascending: false })
-      .limit(10)
-
-    clientsWithTargets?.forEach(client => {
-      const relevantRate = latestRates?.find(rate => 
-        (client.loan_type === 'conventional' && rate.term_years === 30 && rate.loan_type === 'conventional') ||
-        (client.loan_type === 'fha' && rate.loan_type === 'fha') ||
-        (client.loan_type === 'va' && rate.loan_type === 'va')
-      )
-
-      if (relevantRate && client.target_rate && relevantRate.rate_value <= client.target_rate) {
-        const rateDate = new Date(relevantRate.rate_date)
-        const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
-        
-        if (rateDate >= threeDaysAgo) {
+      recentRates?.forEach(rate => {
+        if (rate.change_1_day && Math.abs(rate.change_1_day) >= 0.125) {
+          const changeDirection = rate.change_1_day > 0 ? 'up' : 'down'
           activities.push({
-            id: `rate_alert_${client.id}`,
-            type: 'rate_alert',
-            message: `${client.first_name} ${client.last_name}'s target rate of ${client.target_rate}% reached`,
-            timestamp: formatTimeAgo(rateDate),
-            status: 'success',
-            client_name: `${client.first_name} ${client.last_name}`,
-            rate_value: relevantRate.rate_value
+            id: `rate_change_${rate.rate_date}`,
+            type: 'rate_change',
+            message: `30yr rates ${changeDirection} to ${rate.rate_value.toFixed(3)}%`,
+            timestamp: formatTimeAgo(new Date(rate.created_at || rate.rate_date)),
+            status: rate.change_1_day > 0 ? 'warning' : 'success',
+            rate_value: rate.rate_value
           })
         }
-      }
-    })
+      })
 
-    // 4. Track recent client updates - EXCLUDE deleted
-    const { data: recentUpdates } = await supabase
-      .from('clients')
-      .select('id, first_name, last_name, current_stage, updated_at, created_at')
-      .eq('user_id', user.id)
-      .is('deleted_at', null) // ← ADDED
-      .gte('updated_at', sevenDaysAgo.toISOString())
-      .order('updated_at', { ascending: false })
-      .limit(5)
+      // 3. Check target rates
+      const { data: clientsWithTargets } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, target_rate, loan_type, updated_at')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .not('target_rate', 'is', null)
 
-    recentUpdates?.forEach(client => {
-      const updatedAt = new Date(client.updated_at)
-      const createdAt = new Date(client.created_at)
-      const timeDiff = Math.abs(updatedAt.getTime() - createdAt.getTime())
-      
-      if (updatedAt > sevenDaysAgo && timeDiff > 60000) {
-        activities.push({
-          id: `client_update_${client.id}`,
-          type: 'stage_change',
-          message: `${client.first_name} ${client.last_name} moved to ${client.current_stage} stage`,
-          timestamp: formatTimeAgo(updatedAt),
-          status: 'info',
-          client_name: `${client.first_name} ${client.last_name}`,
-          stage_to: client.current_stage
-        })
-      }
-    })
+      const { data: latestRates } = await supabase
+        .from('rate_history')
+        .select('rate_value, term_years, loan_type, rate_date')
+        .order('rate_date', { ascending: false })
+        .limit(10)
 
-    // Sort all activities by timestamp (most recent first)
-    activities.sort((a, b) => {
-      const timeA = parseTimeAgo(a.timestamp)
-      const timeB = parseTimeAgo(b.timestamp)
-      return timeA - timeB
-    })
+      clientsWithTargets?.forEach(client => {
+        const relevantRate = latestRates?.find(rate => 
+          (client.loan_type === 'conventional' && rate.term_years === 30 && rate.loan_type === 'conventional') ||
+          (client.loan_type === 'fha' && rate.loan_type === 'fha') ||
+          (client.loan_type === 'va' && rate.loan_type === 'va')
+        )
 
-    setActivities(activities.slice(0, 5))
-  } catch (error) {
-    console.error('Error fetching recent activity:', error)
-    setActivities([])
-  } finally {
-    setLoading(false)
+        if (relevantRate && client.target_rate && relevantRate.rate_value <= client.target_rate) {
+          const rateDate = new Date(relevantRate.rate_date)
+          const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+          
+          if (rateDate >= threeDaysAgo) {
+            activities.push({
+              id: `rate_alert_${client.id}`,
+              type: 'rate_alert',
+              message: `${client.first_name} ${client.last_name} target reached`,
+              timestamp: formatTimeAgo(rateDate),
+              status: 'success',
+              client_name: `${client.first_name} ${client.last_name}`,
+              rate_value: relevantRate.rate_value
+            })
+          }
+        }
+      })
+
+      // 4. Track client updates
+      const { data: recentUpdates } = await supabase
+        .from('clients')
+        .select('id, first_name, last_name, current_stage, updated_at, created_at')
+        .eq('user_id', user.id)
+        .is('deleted_at', null)
+        .gte('updated_at', sevenDaysAgo.toISOString())
+        .order('updated_at', { ascending: false })
+        .limit(5)
+
+      recentUpdates?.forEach(client => {
+        const updatedAt = new Date(client.updated_at)
+        const createdAt = new Date(client.created_at)
+        const timeDiff = Math.abs(updatedAt.getTime() - createdAt.getTime())
+        
+        if (updatedAt > sevenDaysAgo && timeDiff > 60000) {
+          activities.push({
+            id: `client_update_${client.id}`,
+            type: 'stage_change',
+            message: `${client.first_name} ${client.last_name} → ${client.current_stage}`,
+            timestamp: formatTimeAgo(updatedAt),
+            status: 'info',
+            client_name: `${client.first_name} ${client.last_name}`,
+            stage_to: client.current_stage
+          })
+        }
+      })
+
+      activities.sort((a, b) => parseTimeAgo(a.timestamp) - parseTimeAgo(b.timestamp))
+      setActivities(activities.slice(0, 5))
+    } catch (error) {
+      console.error('Error fetching recent activity:', error)
+      setActivities([])
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   const formatTimeAgo = (date: Date): string => {
     const now = new Date()
@@ -172,33 +162,26 @@ const fetchRecentActivity = async () => {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-    if (diffMins < 60) {
-      return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`
-    } else if (diffHours < 24) {
-      return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`
-    } else {
-      return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`
-    }
+    if (diffMins < 1) return 'now'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    return `${diffDays}d`
   }
 
   const parseTimeAgo = (timeAgo: string): number => {
-    // Simple parser for sorting - returns minutes ago
-    if (timeAgo.includes('minute')) {
-      return parseInt(timeAgo)
-    } else if (timeAgo.includes('hour')) {
-      return parseInt(timeAgo) * 60
-    } else if (timeAgo.includes('day')) {
-      return parseInt(timeAgo) * 60 * 24
-    }
+    if (timeAgo === 'now') return 0
+    if (timeAgo.includes('m')) return parseInt(timeAgo)
+    if (timeAgo.includes('h')) return parseInt(timeAgo) * 60
+    if (timeAgo.includes('d')) return parseInt(timeAgo) * 60 * 24
     return 0
   }
 
-  const getIcon = (type: Activity['type']) => {
+  const getIcon = (type: ActivityItem['type']) => {
     switch (type) {
       case 'rate_alert': return Target
       case 'rate_change': return TrendingUp
       case 'client_update': 
-      case 'stage_change': return Clock
+      case 'stage_change': return Activity
       case 'new_client': return User
       case 'call_made': return Phone
       case 'email_sent': return Mail
@@ -206,66 +189,96 @@ const fetchRecentActivity = async () => {
     }
   }
 
-  const getStatusColor = (status?: Activity['status']) => {
+  const getStatusColor = (status?: ActivityItem['status']) => {
     switch (status) {
-      case 'success': return 'text-green-600 bg-green-100 dark:bg-green-900/20 dark:text-green-400'
-      case 'warning': return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400'
-      case 'error': return 'text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400'
-      case 'info': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400'
-      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400'
+      case 'success': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      case 'warning': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+      case 'error': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+      case 'info': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
     }
   }
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="h-full flex flex-col p-4 md:p-5">
+        <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
+          Recent Activity
+        </h3>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {activities.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-              <p>No recent activity found</p>
-              <p className="text-sm">Activity will appear here as you use the system</p>
-            </div>
-          ) : (
-            activities.map((activity) => {
-              const Icon = getIcon(activity.type)
-              return (
-                <div key={activity.id} className="flex items-start space-x-3">
-                  <div className={`p-2 rounded-lg ${getStatusColor(activity.status)}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 dark:text-gray-100">
-                      {activity.message}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {activity.timestamp}
-                    </p>
-                  </div>
-                </div>
-              )
-            })
-          )}
+    <div className="h-full flex flex-col p-3 md:p-4">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between mb-2 md:mb-3">
+        <h3 className="text-sm md:text-base font-semibold text-gray-900 dark:text-gray-100">
+          Recent Activity
+        </h3>
+        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-[10px] md:text-xs font-medium">
+          <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse" />
+          Live
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Compact Activity List */}
+      <div className="flex-1 overflow-y-auto space-y-1.5 min-h-[120px] md:min-h-[140px] pr-1">
+        {activities.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-6">
+            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-2">
+              <AlertCircle className="w-5 h-5 text-gray-400" />
+            </div>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">No recent activity</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-500">Activity appears as you use the system</p>
+          </div>
+        ) : (
+          activities.map((activity) => {
+            const Icon = getIcon(activity.type)
+            
+            return (
+              <div 
+                key={activity.id} 
+                className="flex items-center gap-2 p-1.5 md:p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+              >
+                {/* Compact Icon */}
+                <div className={`flex-shrink-0 w-6 h-6 md:w-7 md:h-7 rounded-lg ${getStatusColor(activity.status)} flex items-center justify-center`}>
+                  <Icon className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                </div>
+
+                {/* Compact Content */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs md:text-sm font-medium text-gray-900 dark:text-gray-100 leading-tight truncate">
+                    {activity.message}
+                  </p>
+                  <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {activity.timestamp}
+                  </p>
+                </div>
+
+                {/* Optional rate badge */}
+                {activity.rate_value && (
+                  <div className="flex-shrink-0 px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded text-[10px] md:text-xs font-semibold">
+                    {activity.rate_value.toFixed(3)}%
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Compact Footer */}
+      {activities.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-[10px] md:text-xs text-center text-gray-500 dark:text-gray-400">
+            {activities.length} recent {activities.length === 1 ? 'activity' : 'activities'}
+          </p>
+        </div>
+      )}
+    </div>
   )
 }

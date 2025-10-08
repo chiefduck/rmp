@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Plus, Archive, CheckCircle, Users } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { PipelineStats } from '../components/CRM/PipelineStats'
