@@ -1,7 +1,10 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ComingSoonOverlay } from '../components/ui/ComingSoonOverlay'
 
 export const AutoCalling: React.FC = () => {
+  const navigate = useNavigate()
+
   return (
     <div className="relative min-h-screen">
       {/* Coming Soon Overlay */}
@@ -19,6 +22,7 @@ export const AutoCalling: React.FC = () => {
           'Compliance with TCPA and Do Not Call regulations'
         ]}
         estimatedDate="Q4 2025"
+        onClose={() => navigate('/dashboard')}
       />
     </div>
   )

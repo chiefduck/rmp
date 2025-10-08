@@ -16,15 +16,27 @@ export const ComingSoonOverlay: React.FC<ComingSoonOverlayProps> = ({
   estimatedDate,
   onClose
 }) => {
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && onClose) {
+      onClose()
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-50 backdrop-blur-sm bg-gray-900/60 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="relative max-w-2xl w-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl md:rounded-3xl p-[2px] shadow-2xl my-4 animate-in fade-in duration-300">
-        <div className="bg-gray-900 rounded-2xl md:rounded-3xl p-6 sm:p-8 md:p-10 max-h-[90vh] overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 backdrop-blur-sm bg-gray-900/60 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={handleBackdropClick}
+    >
+      <div 
+        className="relative max-w-2xl w-full bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl md:rounded-3xl p-[2px] shadow-2xl my-4 animate-in fade-in duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gray-900 rounded-2xl md:rounded-3xl p-6 sm:p-8 md:p-10 max-h-[90vh] overflow-y-auto relative">
           {/* Close Button */}
           {onClose && (
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="absolute top-3 right-3 md:top-4 md:right-4 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
@@ -32,7 +44,7 @@ export const ComingSoonOverlay: React.FC<ComingSoonOverlayProps> = ({
           )}
 
           {/* Animated Icon */}
-          <div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-6 mt-8">
             <div className="relative">
               <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl animate-pulse">
                 <Sparkles className="w-8 h-8 md:w-10 md:h-10 text-white" />

@@ -1,7 +1,10 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ComingSoonOverlay } from '../components/ui/ComingSoonOverlay'
 
 export const AIAssistant: React.FC = () => {
+  const navigate = useNavigate()
+
   return (
     <div className="relative min-h-screen">
       {/* Blurred Background Content */}
@@ -53,6 +56,7 @@ export const AIAssistant: React.FC = () => {
           'Integration with your CRM for seamless workflow'
         ]}
         estimatedDate="Q4 2025"
+        onClose={() => navigate('/dashboard')}
       />
     </div>
   )
