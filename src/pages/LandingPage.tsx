@@ -7,9 +7,14 @@ import { LandingFooter } from '../components/Layout/LandingFooter'
 interface LandingPageProps {
   onLogin: () => void
   onGetStarted: () => void
+  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void  // ADD THIS
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ 
+  onLogin, 
+  onGetStarted, 
+  onLegalClick  // ADD THIS
+}) => {
   const features = [
     {
       icon: BarChart3,
@@ -129,24 +134,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
               Automate your workflow, never miss opportunities, and grow your business with AI-powered insights.
             </p>
             
-            <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <Button 
-                size="lg" 
-                onClick={() => onGetStarted(true)}
-                className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
-              >
-                Start Free Trial
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="px-8 py-4 text-lg border-2 border-white text-white hover:bg-white hover:text-gray-900"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Watch Demo
-              </Button>
-            </div>
+            <div className="flex justify-center">
+  <Button 
+    size="lg" 
+    onClick={onGetStarted}
+    className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
+  >
+    Start Free Trial
+    <ArrowRight className="w-5 h-5 ml-2" />
+  </Button>
+</div>
+
             
             <p className="text-gray-400 mt-6">
               14-day free trial • Cancel anytime
@@ -199,6 +197,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
           </div>
         </div>
       </section>
+
+{/* About Section */}
+<section id="about" className="py-20 bg-white">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="text-center mb-12">
+      <h2 className="text-4xl font-bold text-gray-900 mb-4">
+        Built by Mortgage Professionals, For Mortgage Professionals
+      </h2>
+      <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        We understand the challenges of managing rate-sensitive clients because we've been there. 
+        Rate Monitor Pro was created to solve the real problems mortgage professionals face every day: 
+        missed opportunities, time-consuming follow-ups, and inefficient client management.
+      </p>
+    </div>
+    
+    <div className="grid md:grid-cols-3 gap-8 mt-12">
+      <div className="text-center">
+        <div className="text-4xl font-bold text-blue-600 mb-2">500+</div>
+        <div className="text-gray-600">Active Users</div>
+      </div>
+      <div className="text-center">
+        <div className="text-4xl font-bold text-blue-600 mb-2">10K+</div>
+        <div className="text-gray-600">Clients Monitored</div>
+      </div>
+      <div className="text-center">
+        <div className="text-4xl font-bold text-blue-600 mb-2">$50M+</div>
+        <div className="text-gray-600">Loans Closed</div>
+      </div>
+    </div>
+  </div>
+</section>
 
       {/* Benefits Section */}
       <div className="py-24 bg-gray-50">
@@ -394,7 +423,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
       </div>
 
       {/* Footer */}
-      <LandingFooter onLogin={onLogin} />
+      <LandingFooter 
+    onLogin={onLogin} 
+    onLegalClick={onLegalClick}  // ADD THIS
+  />
     </div>
   )
 }

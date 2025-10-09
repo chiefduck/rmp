@@ -1,5 +1,5 @@
-// src/App.tsx - Updated with scroll-to-top functionality
-import React from 'react'
+// src/App.tsx - Updated with legal page routing
+import React, { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -17,12 +17,23 @@ import { Billing } from './pages/Billing'
 import { Settings } from './pages/Settings'
 import { LandingPage } from './pages/LandingPage'
 import { AuthCallback } from './pages/AuthCallback'
-import { useState } from 'react'
+import { 
+  PrivacyPolicyPage, 
+  TermsOfServicePage, 
+  CookiePolicyPage, 
+  CompliancePage 
+} from './pages/LegalPages'
 import { useSubscription } from './hooks/useSubscription'
 import { Loader2 } from 'lucide-react'
 
+type LegalPageType = 'privacy' | 'terms' | 'cookies' | 'compliance' | null
+
 // Simple component to handle landing page logic
-const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = ({ onShowAuth, onGetStarted }) => {
+const Landing: React.FC<{ 
+  onShowAuth: () => void
+  onGetStarted: () => void
+  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void
+}> = ({ onShowAuth, onGetStarted, onLegalClick }) => {
   const { user, loading: authLoading } = useAuth()
   const { hasActiveSubscription, loading: subLoading } = useSubscription()
   const location = useLocation()
@@ -46,27 +57,23 @@ const Landing: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = 
     <LandingPage 
       onLogin={onShowAuth}
       onGetStarted={onGetStarted}
+      onLegalClick={onLegalClick}
     />
   )
 }
 
-// ✅ NEW: Smart catch-all that waits for auth to load before redirecting
-const CatchAll: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> = ({ onShowAuth, onGetStarted }) => {
+// Smart catch-all that waits for auth to load before redirecting
+const CatchAll: React.FC<{ 
+  onShowAuth: () => void
+  onGetStarted: () => void
+  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void
+}> = ({ onShowAuth, onGetStarted, onLegalClick }) => {
   const { user, loading: authLoading } = useAuth()
   const { hasActiveSubscription, loading: subLoading } = useSubscription()
   const location = useLocation()
 
-  console.log('🔀 CatchAll route hit:', {
-    path: location.pathname,
-    authLoading,
-    subLoading,
-    hasUser: !!user,
-    hasActiveSubscription
-  })
-
-  // ✅ CRITICAL: Show loader during auth check to prevent premature redirects
+  // Show loader during auth check to prevent premature redirects
   if (authLoading || subLoading) {
-    console.log('🔀 CatchAll: Auth/Sub loading, showing loader')
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
@@ -76,27 +83,52 @@ const CatchAll: React.FC<{ onShowAuth: () => void; onGetStarted: () => void }> =
 
   // If authenticated with subscription, redirect to dashboard
   if (user && hasActiveSubscription) {
-    console.log('🔀 CatchAll: Authenticated user, redirecting to dashboard')
     return <Navigate to="/dashboard" replace />
   }
 
   // Otherwise, show landing page
-  console.log('🔀 CatchAll: Not authenticated or no subscription, showing landing')
-  return <Landing onShowAuth={onShowAuth} onGetStarted={onGetStarted} />
+  return <Landing onShowAuth={onShowAuth} onGetStarted={onGetStarted} onLegalClick={onLegalClick} />
 }
 
 const AppContent: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin')
+  const [legalPage, setLegalPage] = useState<LegalPageType>(null)
 
   const openAuthModal = (mode: 'signin' | 'signup' = 'signin') => {
     setAuthModalMode(mode)
     setShowAuthModal(true)
   }
 
+  const handleLegalClick = (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => {
+    setLegalPage(page)
+    // Scroll to top when opening legal page
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleBackFromLegal = () => {
+    setLegalPage(null)
+    // Scroll to top when returning
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Show legal pages if one is selected
+  if (legalPage === 'privacy') {
+    return <PrivacyPolicyPage onBack={handleBackFromLegal} />
+  }
+  if (legalPage === 'terms') {
+    return <TermsOfServicePage onBack={handleBackFromLegal} />
+  }
+  if (legalPage === 'cookies') {
+    return <CookiePolicyPage onBack={handleBackFromLegal} />
+  }
+  if (legalPage === 'compliance') {
+    return <CompliancePage onBack={handleBackFromLegal} />
+  }
+
   return (
     <Router>
-      {/* ✅ Add ScrollToTop component here - it will trigger on every route change */}
+      {/* ScrollToTop component triggers on every route change */}
       <ScrollToTop />
       
       <Routes>
@@ -107,6 +139,7 @@ const AppContent: React.FC = () => {
             <Landing 
               onShowAuth={() => openAuthModal('signin')} 
               onGetStarted={() => openAuthModal('signup')}
+              onLegalClick={handleLegalClick}
             />
           }
         />
@@ -125,13 +158,14 @@ const AppContent: React.FC = () => {
           <Route path="/billing" element={<Billing />} />
         </Route>
         
-        {/* ✅ FIXED: Catch all - waits for auth before redirecting */}
+        {/* Catch all - waits for auth before redirecting */}
         <Route 
           path="*" 
           element={
             <CatchAll 
               onShowAuth={() => openAuthModal('signin')} 
               onGetStarted={() => openAuthModal('signup')}
+              onLegalClick={handleLegalClick}
             />
           } 
         />

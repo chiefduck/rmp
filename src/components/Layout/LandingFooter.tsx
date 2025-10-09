@@ -1,11 +1,12 @@
 import React from 'react'
-import { BarChart3, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react'
+import { BarChart3, Mail, Phone, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react'
 
 interface LandingFooterProps {
   onLogin: () => void
+  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void
 }
 
-export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
+export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalClick }) => {
   const currentYear = new Date().getFullYear()
 
   const footerLinks = {
@@ -17,20 +18,16 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
     ],
     company: [
       { label: 'About Us', href: '#about' },
-      { label: 'Contact', href: '#contact' },
-      { label: 'Blog', href: '#blog' },
-      { label: 'Careers', href: '#careers' }
+      { label: 'Contact', href: 'mailto:hello@ratemonitorpro.com' }
     ],
     legal: [
-      { label: 'Privacy Policy', href: '#privacy' },
-      { label: 'Terms of Service', href: '#terms' },
-      { label: 'Cookie Policy', href: '#cookies' },
-      { label: 'Compliance', href: '#compliance' }
+      { label: 'Privacy Policy', page: 'privacy' as const },
+      { label: 'Terms of Service', page: 'terms' as const },
+      { label: 'Cookie Policy', page: 'cookies' as const },
+      { label: 'Compliance', page: 'compliance' as const }
     ],
     support: [
-      { label: 'Help Center', href: '#help' },
-      { label: 'API Documentation', href: '#docs' },
-      { label: 'System Status', href: '#status' },
+      { label: 'Help Center', href: 'mailto:support@ratemonitorpro.com' },
       { label: 'Contact Support', href: 'mailto:support@ratemonitorpro.com' }
     ]
   }
@@ -81,10 +78,6 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
                 <Phone className="w-4 h-4" />
                 (800) 555-1234
               </a>
-            {/*  <div className="flex items-center gap-2 text-gray-400">
-                <MapPin className="w-4 h-4" />
-                Fort Collins, CO 80525
-              </div> */}
             </div>
           </div>
 
@@ -145,12 +138,12 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
-                  <a 
-                    href={link.href} 
-                    className="text-sm text-gray-400 hover:text-white transition-colors"
+                  <button 
+                    onClick={() => onLegalClick(link.page)}
+                    className="text-sm text-gray-400 hover:text-white transition-colors text-left"
                   >
                     {link.label}
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -179,7 +172,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
             <p className="text-sm text-gray-400 mb-4">
               Get the latest mortgage rate insights and product updates delivered to your inbox.
             </p>
-            <form className="flex flex-col sm:flex-row gap-3">
+            <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
               <input 
                 type="email" 
                 placeholder="Enter your email" 
