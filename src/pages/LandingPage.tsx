@@ -2,6 +2,7 @@ import React from 'react'
 import { BarChart3, Users, Bot, Phone, TrendingUp, CheckCircle, Star, ArrowRight, Play } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { LandingNav } from '../components/Layout/LandingNav'
+import { LandingFooter } from '../components/Layout/LandingFooter'
 
 interface LandingPageProps {
   onLogin: () => void
@@ -372,8 +373,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
         </div>
       </section>
 
-      {/* CTA Section */}
-      <div className="py-24 bg-white">
+ {/* CTA Section */}
+ <div className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
             Ready to Transform Your Mortgage Business?
@@ -391,6 +392,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin, onGetStarted 
           </Button>
         </div>
       </div>
+
+      {/* Footer */}
+      <LandingFooter onLogin={onLogin} />
     </div>
   )
 }

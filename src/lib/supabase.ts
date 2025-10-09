@@ -111,6 +111,7 @@ export interface EmailPreferences {
   id: string
   user_id: string
   rate_alerts: boolean
+  send_client_emails: boolean 
   weekly_reports: boolean
   client_updates: boolean
   market_insights: boolean

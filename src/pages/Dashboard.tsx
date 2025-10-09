@@ -1,3 +1,5 @@
+// src/pages/Dashboard.tsx - Updated with clickable cards and modals
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, TrendingDown, Phone, Mail, DollarSign, Target, RefreshCw, TrendingUp } from 'lucide-react';
@@ -7,6 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import { RateService } from '../lib/rateService';
 import { RateChart } from '../components/Dashboard/RateChart';
 import { RecentActivity } from '../components/Dashboard/RecentActivity';
+import { RateDetailsModal, PipelineModal, OpportunitiesModal } from '../components/Dashboard/DashboardModals';
 
 interface MarketData {
   current_30yr?: number;
@@ -37,11 +40,17 @@ const Dashboard: React.FC = () => {
   const [rateHistory, setRateHistory] = useState<Array<{ date: string; rate: number }>>([]);
   const [stats, setStats] = useState<DashboardStats>({ totalClients: 0, activeOpportunities: 0, pipelineValue: 0 });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [clients, setClients] = useState<any[]>([]);
+
+  // Modal states
+  const [rateModalOpen, setRateModalOpen] = useState(false);
+  const [selectedRate, setSelectedRate] = useState<any>(null);
+  const [pipelineModalOpen, setPipelineModalOpen] = useState(false);
+  const [opportunitiesModalOpen, setOpportunitiesModalOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
     
-    // ✅ REAL-TIME RATE SUBSCRIPTION
     const rateSubscription = supabase
       .channel('dashboard_rate_updates')
       .on(
@@ -65,7 +74,6 @@ const Dashboard: React.FC = () => {
     };
     window.addEventListener('focus', handleFocus);
     
-    // Auto-refresh every 15 minutes as backup
     const refreshInterval = setInterval(() => {
       fetchDashboardData();
       setRefreshTrigger(prev => prev + 1);
@@ -81,10 +89,11 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     if (!user) return;
     try {
-      const [clientRes, oppRes, pipelineRes, currentRates, historyData] = await Promise.all([
+      const [clientRes, oppRes, pipelineRes, allClientsRes, currentRates, historyData] = await Promise.all([
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('deleted_at', null),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', user.id).is('deleted_at', null).in('current_stage', ['qualified', 'application']),
         supabase.from('clients').select('loan_amount').eq('user_id', user.id).is('deleted_at', null).not('loan_amount', 'is', null),
+        supabase.from('clients').select('*').eq('user_id', user.id).is('deleted_at', null).order('created_at', { ascending: false }),
         RateService.getCurrentRates(),
         RateService.getRateHistory(30, 'conventional', 30)
       ]);
@@ -94,6 +103,8 @@ const Dashboard: React.FC = () => {
         activeOpportunities: oppRes.count || 0,
         pipelineValue: pipelineRes.data?.reduce((sum, client) => sum + (client.loan_amount || 0), 0) || 0
       });
+
+      setClients(allClientsRes.data || []);
 
       setMarketData({
         current_30yr: currentRates['30yr_conventional']?.rate_value,
@@ -114,7 +125,6 @@ const Dashboard: React.FC = () => {
     }
   };
   
-  // ✅ Manual refresh triggers fresh scrape from MND
   const handleRefreshRates = async () => {
     setIsRefreshing(true);
     try {
@@ -130,11 +140,15 @@ const Dashboard: React.FC = () => {
         info('⚠️ Could not fetch fresh data, showing latest available rates');
       }
     } catch (error) {
-
       await fetchDashboardData();
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleRateCardClick = (rateData: any) => {
+    setSelectedRate(rateData);
+    setRateModalOpen(true);
   };
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
@@ -163,7 +177,8 @@ const Dashboard: React.FC = () => {
       description: stats.totalClients > 0 
         ? (stats.totalClients === 1 ? 'Your first client' : 'Growing your pipeline') 
         : 'Add your first client',
-      descriptionColor: 'text-gray-500 dark:text-gray-400'
+      descriptionColor: 'text-gray-500 dark:text-gray-400',
+      onClick: () => setPipelineModalOpen(true)
     },
     { 
       title: 'Active Opportunities', 
@@ -173,7 +188,8 @@ const Dashboard: React.FC = () => {
       description: stats.activeOpportunities > 0 
         ? (stats.activeOpportunities === 1 ? '1 hot lead' : `${stats.activeOpportunities} hot leads`)
         : 'No active opportunities yet',
-      descriptionColor: stats.activeOpportunities > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
+      descriptionColor: stats.activeOpportunities > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400',
+      onClick: () => setOpportunitiesModalOpen(true)
     },
     { 
       title: 'Pipeline Value', 
@@ -183,7 +199,8 @@ const Dashboard: React.FC = () => {
       description: stats.pipelineValue > 0 
         ? (stats.totalClients > 0 ? `Avg ${formatCurrency(stats.pipelineValue / stats.totalClients)} per client` : 'Building your pipeline')
         : 'Add loan amounts to track',
-      descriptionColor: stats.pipelineValue > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
+      descriptionColor: stats.pipelineValue > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400',
+      onClick: () => setPipelineModalOpen(true)
     }
   ], [stats]);
 
@@ -195,112 +212,170 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6 p-4 md:p-0">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-        <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start space-y-4 md:space-y-0">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2 drop-shadow-sm">Welcome back! 👋</h1>
-              <p className="text-white/90 text-base md:text-lg">Here's what's happening with your mortgage business today.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 text-xs text-white/80 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span>Live Updates</span>
+    <>
+      <div className="space-y-6 pb-20 md:pb-6 p-4 md:p-0">
+        {/* Hero Header */}
+        <div className="relative overflow-hidden rounded-2xl md:rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
+          <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start space-y-4 md:space-y-0">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-2 drop-shadow-sm">Welcome back! 👋</h1>
+                <p className="text-white/90 text-base md:text-lg">Here's what's happening with your mortgage business today.</p>
               </div>
-              <button 
-                onClick={handleRefreshRates} 
-                disabled={isRefreshing} 
-                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 min-h-[44px] active:scale-95"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="text-sm font-medium">Refresh</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-xs text-white/80 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-lg border border-white/20">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span>Live Updates</span>
+                </div>
+                <button 
+                  onClick={handleRefreshRates} 
+                  disabled={isRefreshing} 
+                  className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl border border-white/30 transition-all duration-200 min-h-[44px] active:scale-95"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <span className="text-sm font-medium">Refresh</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Rate Widgets - Responsive Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-        {rateWidgets.map((rate) => {
-          const ChangeIcon = getChangeIcon(rate.change);
-          const hasValidChange = rate.change !== null && rate.change !== undefined && rate.change !== 0;
-          
-          return (
-            <div key={rate.label} className="relative group">
-              <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
-                <div className={`w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r ${rate.gradient} rounded-lg md:rounded-xl flex items-center justify-center mb-2 md:mb-3`}>
-                  <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                </div>
-                <h3 className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{rate.label}</h3>
-                <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-2">
-                  <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    {rate.current ? `${rate.current.toFixed(3)}%` : '-.---'}
-                  </span>
-                  {hasValidChange && ChangeIcon && (
-                    <div className={`flex items-center gap-1 ${getChangeColor(rate.change)}`}>
-                      <ChangeIcon className="w-3 h-3" />
-                      <span className="text-xs font-medium">{Math.abs(rate.change!).toFixed(3)}</span>
+        {/* Rate Widgets - NOW CLICKABLE */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+          {rateWidgets.map((rate) => {
+            const ChangeIcon = getChangeIcon(rate.change);
+            const hasValidChange = rate.change !== null && rate.change !== undefined && rate.change !== 0;
+            
+            return (
+              <button
+                key={rate.label}
+                onClick={() => handleRateCardClick(rate)}
+                className="relative group text-left w-full"
+              >
+                <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer">
+                  <div className={`w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r ${rate.gradient} rounded-lg md:rounded-xl flex items-center justify-center mb-2 md:mb-3 group-hover:scale-110 transition-transform`}>
+                    <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                  </div>
+                  <h3 className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">{rate.label}</h3>
+                  <div className="flex flex-col md:flex-row md:items-baseline gap-1 md:gap-2">
+                    <span className="text-lg md:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                      {rate.current ? `${rate.current.toFixed(3)}%` : '-.---'}
+                    </span>
+                    {hasValidChange && ChangeIcon && (
+                      <div className={`flex items-center gap-1 ${getChangeColor(rate.change)}`}>
+                        <ChangeIcon className="w-3 h-3" />
+                        <span className="text-xs font-medium">{Math.abs(rate.change!).toFixed(3)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {formatRateDate(rate.date)}
+                  </p>
+                  {/* Click indicator */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="w-6 h-6 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-lg">
+                      <svg className="w-3 h-3 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                  )}
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {formatRateDate(rate.date)}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {statCards.map(card => (
-          <div key={card.title} className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:bg-white/70 dark:hover:bg-gray-800/70 transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{card.title}</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{card.value}</p>
-                <p className={`text-sm mt-1 ${card.descriptionColor}`}>{card.description}</p>
-              </div>
-              <div className={`w-12 h-12 bg-gradient-to-r ${card.gradient} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                <card.icon className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {quickActions.map(action => (
-            <button 
-              key={action.label} 
-              onClick={action.onClick} 
-              className={`flex flex-col items-center p-3 md:p-4 rounded-xl transition-all duration-200 backdrop-blur-sm min-h-[88px] active:scale-95 ${action.className}`}
+        {/* Stat Cards - NOW CLICKABLE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {statCards.map(card => (
+            <button
+              key={card.title}
+              onClick={card.onClick}
+              className="relative group text-left w-full"
             >
-              <action.icon className={`w-6 h-6 md:w-8 md:h-8 mb-2 ${action.iconClass}`} />
-              <span className={`text-xs md:text-sm font-medium text-center ${action.textClass}`}>{action.label}</span>
+              <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6 hover:bg-white/80 dark:hover:bg-gray-800/80 hover:scale-105 hover:shadow-xl transition-all duration-300 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{card.title}</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{card.value}</p>
+                    <p className={`text-sm mt-1 ${card.descriptionColor}`}>{card.description}</p>
+                  </div>
+                  <div className={`w-12 h-12 bg-gradient-to-r ${card.gradient} rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}>
+                    <card.icon className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                {/* Click indicator */}
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="w-6 h-6 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-3 h-3 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </button>
           ))}
         </div>
+
+        {/* Quick Actions */}
+        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {quickActions.map(action => (
+              <button 
+                key={action.label} 
+                onClick={action.onClick} 
+                className={`flex flex-col items-center p-3 md:p-4 rounded-xl transition-all duration-200 backdrop-blur-sm min-h-[88px] active:scale-95 ${action.className}`}
+              >
+                <action.icon className={`w-6 h-6 md:w-8 md:h-8 mb-2 ${action.iconClass}`} />
+                <span className={`text-xs md:text-sm font-medium text-center ${action.textClass}`}>{action.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Charts - Compact Heights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
+            <RateChart data={rateHistory} title="30yr Fixed Rate Trends (Last 30 Days)" />
+          </div>
+          <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
+            <RecentActivity refreshTrigger={refreshTrigger} />
+          </div>
+        </div>
       </div>
 
-      {/* Charts - Compact Heights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
-          <RateChart data={rateHistory} title="30yr Fixed Rate Trends (Last 30 Days)" />
-        </div>
-        <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl overflow-hidden h-[280px] md:h-[320px]">
-          <RecentActivity refreshTrigger={refreshTrigger} />
-        </div>
-      </div>
-    </div>
+      {/* MODALS */}
+      {selectedRate && (
+        <RateDetailsModal
+          isOpen={rateModalOpen}
+          onClose={() => {
+            setRateModalOpen(false);
+            setSelectedRate(null);
+          }}
+          rateData={selectedRate}
+          history={rateHistory}
+        />
+      )}
+
+      <PipelineModal
+        isOpen={pipelineModalOpen}
+        onClose={() => setPipelineModalOpen(false)}
+        stats={stats}
+        onNavigateToCRM={() => navigate('/crm')}
+      />
+
+      <OpportunitiesModal
+        isOpen={opportunitiesModalOpen}
+        onClose={() => setOpportunitiesModalOpen(false)}
+        clients={clients}
+        onNavigateToCRM={() => navigate('/crm')}
+      />
+    </>
   );
 };
 
 export default Dashboard;
+
+// Also ensure the import path for DashboardModals is correct:
+// Save the DashboardModals as: src/components/Dashboard/DashboardModals.tsx

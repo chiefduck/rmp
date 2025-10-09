@@ -304,6 +304,7 @@ export const Settings: React.FC = () => {
                 <div className="space-y-3 md:space-y-4">
                   {[
                     { key: 'rate_alerts', label: 'Rate Alerts', desc: 'Get notified when rates hit targets' },
+                    { key: 'send_client_emails', label: 'Send Rate Alerts to Clients', desc: 'Automatically email clients when their target rates are hit'},
                     { key: 'weekly_reports', label: 'Weekly Reports', desc: 'Summary of rate changes' },
                     { key: 'client_updates', label: 'Client Updates', desc: 'Notifications about client activity' },
                     { key: 'market_insights', label: 'Market Insights', desc: 'Industry news and analysis' },

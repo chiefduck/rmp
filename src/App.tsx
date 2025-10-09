@@ -1,3 +1,4 @@
+// src/App.tsx - Updated with scroll-to-top functionality
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -5,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { ProtectedRoute } from './components/Layout/ProtectedRoute'
 import { AppLayout } from './components/Layout/AppLayout'
+import { ScrollToTop } from './components/Layout/ScrollToTop'
 import { AuthModal } from './components/Auth/AuthModal'
 import Dashboard from './pages/Dashboard'
 import { RateMonitor } from './pages/RateMonitor'
@@ -94,6 +96,9 @@ const AppContent: React.FC = () => {
 
   return (
     <Router>
+      {/* ✅ Add ScrollToTop component here - it will trigger on every route change */}
+      <ScrollToTop />
+      
       <Routes>
         {/* Public Landing Page */}
         <Route 

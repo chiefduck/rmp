@@ -1,3 +1,4 @@
+// src/components/CRM/ActivePipelineSection.tsx - WIDER COLUMNS (GHL STYLE)
 import React, { useState } from 'react'
 import { Users } from 'lucide-react'
 import { StageColumn } from './StageColumn'
@@ -63,11 +64,11 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
         <div className="flex-1 h-px bg-gradient-to-r from-blue-500/30 to-transparent" />
       </div>
       
-      {/* Mobile: Horizontal Scroll */}
+      {/* Mobile: Horizontal Scroll - WIDER COLUMNS (GHL STYLE) */}
       <div className="lg:hidden overflow-x-auto -mx-4 px-4">
         <div className="flex gap-4 pb-4 snap-x snap-mandatory">
           {stagesWithCounts.map(stage => (
-            <div key={stage.id} className="min-w-[280px] snap-start">
+            <div key={stage.id} className="min-w-[320px] snap-start">
               <StageColumn
                 stage={stage}
                 clients={clients.filter(client => client.current_stage === stage.id)}
@@ -92,27 +93,33 @@ export const ActivePipelineSection: React.FC<ActivePipelineSectionProps> = ({
         </div>
       </div>
 
-      {/* Desktop: 5-Column Grid */}
-      <div className="hidden lg:grid lg:grid-cols-5 lg:gap-4 xl:gap-6">
-        {stagesWithCounts.map(stage => (
-          <StageColumn
-            key={stage.id}
-            stage={stage}
-            clients={clients.filter(client => client.current_stage === stage.id)}
-            draggedClient={draggedClient}
-            onEditClient={onEditClient}
-            onViewDetails={onViewDetails}
-            onDeleteClient={onDeleteClient}
-            onUpdateStage={onUpdateStage}
-            onArchiveClient={onArchiveClient}
-            onRestoreClient={onRestoreClient}
-            showArchiveButton={showArchiveButton}
-            showRestoreButton={showRestoreButton}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDrop={handleDrop}
-          />
-        ))}
+      {/* Desktop: WIDER 4-COLUMN GRID (GHL STYLE) - More spacious */}
+      {/* Shows 4 columns comfortably, 5th column scrolls */}
+      <div className="hidden lg:block">
+        <div className="overflow-x-auto -mx-4 px-4">
+          <div className="inline-flex gap-6 min-w-full pb-4">
+            {stagesWithCounts.map(stage => (
+              <div key={stage.id} className="w-80 flex-shrink-0">
+                <StageColumn
+                  stage={stage}
+                  clients={clients.filter(client => client.current_stage === stage.id)}
+                  draggedClient={draggedClient}
+                  onEditClient={onEditClient}
+                  onViewDetails={onViewDetails}
+                  onDeleteClient={onDeleteClient}
+                  onUpdateStage={onUpdateStage}
+                  onArchiveClient={onArchiveClient}
+                  onRestoreClient={onRestoreClient}
+                  showArchiveButton={showArchiveButton}
+                  showRestoreButton={showRestoreButton}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

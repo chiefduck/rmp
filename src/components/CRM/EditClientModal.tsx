@@ -217,7 +217,7 @@ export const EditClientModal: React.FC<EditClientModalProps> = ({ isOpen, onClos
                   <div className="grid grid-cols-1 gap-3 md:gap-6">
                     <Input label="Loan Amount" type="number" min="0" value={formData.loan_amount} onChange={(e) => handleInputChange('loan_amount', e.target.value)} icon={<DollarSign className="w-4 h-4" />} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="450000" />
                     <Input label="Locked Rate (%)" type="number" step="0.01" min="0" max="20" value={formData.target_rate} onChange={(e) => handleInputChange('target_rate', e.target.value)} icon={<Target className="w-4 h-4" />} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="6.50" />
-                    <Input label="Lender" value={formData.lender} onChange={(e) => handleInputChange('lender', e.target.value)} icon={<Building className="w-4 h-4" />} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm" placeholder="Wells Fargo" />
+                    <Input label="Lender" value={formData.lender} onChange={(e) => handleInputChange('lender', e.target.value)} icon={<Building className="w-4 h-4" />} className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm" placeholder="Lender" />
                   </div>
                   <div className="grid grid-cols-1 gap-3 md:gap-6">
                     <div className="space-y-3 md:space-y-4">

@@ -1,3 +1,4 @@
+// src/components/CRM/StageColumn.tsx - UPDATED FOR LARGER CARDS
 import React from 'react'
 import { PipelineClientCard } from './PipelineClientCard'
 import { Client } from '../../lib/supabase'
@@ -62,23 +63,23 @@ export const StageColumn: React.FC<StageColumnProps> = ({
     <div
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className="bg-gray-800/40 backdrop-blur-md border border-gray-700/30 rounded-2xl p-3 md:p-4 min-h-[500px] flex flex-col"
+      className="bg-gray-800/40 backdrop-blur-md border border-gray-700/30 rounded-2xl p-4 md:p-5 min-h-[600px] flex flex-col"
     >
-      {/* Column Header */}
-      <div className="mb-3 md:mb-4 flex-shrink-0">
-        <div className={`h-1 w-full bg-gradient-to-r ${stage.color} rounded-full mb-2 md:mb-3`} />
+      {/* Column Header - LARGER */}
+      <div className="mb-4 md:mb-5 flex-shrink-0">
+        <div className={`h-1.5 w-full bg-gradient-to-r ${stage.color} rounded-full mb-3 md:mb-4`} />
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-semibold text-sm md:text-base text-gray-100 truncate">
+          <h3 className="font-bold text-base md:text-lg text-gray-100 truncate">
             {stage.title}
           </h3>
-          <span className="px-2.5 py-1 bg-gray-700/70 text-gray-300 rounded-full text-xs md:text-sm font-medium whitespace-nowrap">
+          <span className="px-3 py-1.5 bg-gray-700/70 text-gray-300 rounded-full text-sm md:text-base font-semibold whitespace-nowrap">
             {stage.count}
           </span>
         </div>
       </div>
 
-      {/* Client Cards - Scrollable */}
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+      {/* Client Cards - Scrollable with MORE SPACE */}
+      <div className="flex-1 overflow-y-auto space-y-4 md:space-y-5 pr-1">
         {clients.map((client) => (
           <PipelineClientCard
             key={client.id}
@@ -97,10 +98,10 @@ export const StageColumn: React.FC<StageColumnProps> = ({
           />
         ))}
 
-        {/* Empty State */}
+        {/* Empty State - LARGER */}
         {clients.length === 0 && (
-          <div className="border-2 border-dashed border-gray-600/50 rounded-xl p-6 md:p-8 text-center">
-            <p className="text-gray-400 text-xs md:text-sm">Drop clients here</p>
+          <div className="border-2 border-dashed border-gray-600/50 rounded-2xl p-8 md:p-12 text-center">
+            <p className="text-gray-400 text-sm md:text-base">Drop clients here</p>
           </div>
         )}
       </div>
