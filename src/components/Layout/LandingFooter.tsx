@@ -1,5 +1,5 @@
 import React from 'react'
-import { BarChart3, Mail, Phone, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react'
+import { BarChart3, Mail, Phone } from 'lucide-react'
 
 interface LandingFooterProps {
   onLogin: () => void
@@ -32,18 +32,11 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalCl
     ]
   }
 
-  const socialLinks = [
-    { icon: Facebook, href: 'https://facebook.com', label: 'Facebook' },
-    { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
-    { icon: Linkedin, href: 'https://linkedin.com', label: 'LinkedIn' },
-    { icon: Instagram, href: 'https://instagram.com', label: 'Instagram' }
-  ]
-
   const trustBadges = [
-    { text: 'SOC 2 Compliant', icon: '🔒' },
-    { text: 'GDPR Ready', icon: '🇪🇺' },
-    { text: 'SSL Encrypted', icon: '🛡️' },
-    { text: '99.9% Uptime', icon: '⚡' }
+    { text: 'Bank-Level Security', icon: '🔒' },
+    { text: 'Data Encrypted', icon: '🛡️' },
+    { text: '99.9% Uptime', icon: '⚡' },
+    { text: 'TCPA Compliant', icon: '✓' }
   ]
 
   return (
@@ -64,7 +57,7 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalCl
               </div>
             </div>
             <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-              The most advanced mortgage rate monitoring and CRM platform for modern mortgage professionals. 
+              Advanced mortgage rate monitoring and CRM platform for modern mortgage professionals. 
               Automate your workflow, never miss opportunities, and grow your business.
             </p>
             
@@ -74,9 +67,9 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalCl
                 <Mail className="w-4 h-4" />
                 support@ratemonitorpro.com
               </a>
-              <a href="tel:+18005551234" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                <Phone className="w-4 h-4" />
-                (800) 555-1234
+              <a href="mailto:hello@ratemonitorpro.com" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                <Mail className="w-4 h-4" />
+                hello@ratemonitorpro.com
               </a>
             </div>
           </div>
@@ -164,29 +157,6 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalCl
             ))}
           </div>
         </div>
-
-        {/* Newsletter Signup */}
-        <div className="mt-12 pt-8 border-t border-gray-800">
-          <div className="max-w-xl mx-auto text-center">
-            <h4 className="text-white font-semibold mb-2">Stay Updated</h4>
-            <p className="text-sm text-gray-400 mb-4">
-              Get the latest mortgage rate insights and product updates delivered to your inbox.
-            </p>
-            <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => e.preventDefault()}>
-              <input 
-                type="email" 
-                placeholder="Enter your email" 
-                className="flex-1 px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-600"
-              />
-              <button 
-                type="submit"
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
-              >
-                Subscribe
-              </button>
-            </form>
-          </div>
-        </div>
       </div>
 
       {/* Bottom Bar */}
@@ -198,25 +168,6 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin, onLegalCl
             <p className="text-sm text-gray-400">
               © {currentYear} Rate Monitor Pro. All rights reserved.
             </p>
-
-            {/* Social Links */}
-            <div className="flex items-center gap-4">
-              {socialLinks.map((social) => {
-                const Icon = social.icon
-                return (
-                  <a
-                    key={social.label}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-700 transition-all duration-200"
-                    aria-label={social.label}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </a>
-                )
-              })}
-            </div>
 
             {/* Login Link */}
             <button

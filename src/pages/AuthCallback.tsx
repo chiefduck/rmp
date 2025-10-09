@@ -27,7 +27,6 @@ export const AuthCallback: React.FC = () => {
         }
 
         const user = data.session.user
-        console.log('Email verified for user:', user.id)
         
         setStatus('Checking subscription...')
         
@@ -41,7 +40,6 @@ export const AuthCallback: React.FC = () => {
 
         // If no customer exists, this is a new signup - redirect to Stripe
         if (!customer) {
-          console.log('New user - redirecting to Stripe Checkout')
           setStatus('Creating checkout session...')
           await redirectToStripeCheckout(data.session.access_token)
           return
@@ -57,11 +55,9 @@ export const AuthCallback: React.FC = () => {
 
         // If they have active or trialing status, go to dashboard
         if (subscription && ['active', 'trialing'].includes(subscription.status)) {
-          console.log('Existing user with active subscription - redirecting to dashboard')
           navigate('/dashboard')
         } else {
           // No active subscription - redirect to Stripe
-          console.log('User needs to subscribe - redirecting to Stripe Checkout')
           setStatus('Creating checkout session...')
           await redirectToStripeCheckout(data.session.access_token)
         }
@@ -74,10 +70,7 @@ export const AuthCallback: React.FC = () => {
 
     const redirectToStripeCheckout = async (accessToken: string) => {
       try {
-        // Get price ID from your stripe config
         const PRICE_ID = products[0].priceId
-        
-        console.log('Creating Stripe checkout with price:', PRICE_ID)
         
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`,
@@ -95,8 +88,6 @@ export const AuthCallback: React.FC = () => {
           }
         )
 
-        console.log('Stripe checkout response status:', response.status)
-
         if (!response.ok) {
           const errorData = await response.json()
           console.error('Stripe checkout failed:', errorData)
@@ -104,11 +95,8 @@ export const AuthCallback: React.FC = () => {
         }
 
         const data = await response.json()
-        console.log('Stripe checkout data:', data)
         
         if (data.url) {
-          console.log('Redirecting to Stripe:', data.url)
-          // Redirect to Stripe Checkout
           window.location.href = data.url
         } else {
           throw new Error('No checkout URL returned from Stripe')

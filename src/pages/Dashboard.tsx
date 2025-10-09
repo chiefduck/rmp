@@ -128,13 +128,13 @@ const Dashboard: React.FC = () => {
   const handleRefreshRates = async () => {
     setIsRefreshing(true);
     try {
-      info('Fetching fresh rates from MND...')
+      info('Updating market rates...')
       const freshDataSuccess = await RateService.fetchFreshRates();
       
       if (freshDataSuccess) {
         await new Promise(resolve => setTimeout(resolve, 2000))
         await fetchDashboardData();
-        info('✅ Fresh rates updated successfully!');
+        info('✅ Rates updated successfully!');
       } else {
         await fetchDashboardData();
         info('⚠️ Could not fetch fresh data, showing latest available rates');
@@ -376,6 +376,3 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
-
-// Also ensure the import path for DashboardModals is correct:
-// Save the DashboardModals as: src/components/Dashboard/DashboardModals.tsx

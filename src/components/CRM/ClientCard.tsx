@@ -46,30 +46,21 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   const formatLoanTypeDisplay = (loanType: string) => {
     if (!loanType) return 'N/A'
     
-    // Add debug logging
-    console.log('Debug - Client loan_type:', loanType)
-    
     if (loanType.includes('_')) {
       // New combined format: "conventional_30yr"
       const [type, term] = loanType.split('_')
       const formattedType = type.toUpperCase()
       const formattedTerm = term.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM')
-      const result = `${formattedType} ${formattedTerm}`
-      console.log('Debug - Combined format result:', result)
-      return result
+      return `${formattedType} ${formattedTerm}`
     } else {
       // Old single format - could be just a type or just a term
       const standardTerms = ['10yr', '15yr', '20yr', '25yr', '30yr', '40yr', 'io', 'arm']
       if (standardTerms.includes(loanType)) {
         // It's just a term, show it formatted with "LOAN" prefix
-        const result = `LOAN ${loanType.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM').toUpperCase()}`
-        console.log('Debug - Term only result:', result)
-        return result
+        return `LOAN ${loanType.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM').toUpperCase()}`
       } else {
         // It's a loan type, show it
-        const result = loanType.toUpperCase()
-        console.log('Debug - Type only result:', result)
-        return result
+        return loanType.toUpperCase()
       }
     }
   }
@@ -123,8 +114,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({
                 {clientName}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-  {formatLoanTypeDisplay(client.loan_type)} {client.lender ? `• ${client.lender}` : ''} {client.credit_score ? `• Credit: ${client.credit_score}` : ''}
-</p>
+                {formatLoanTypeDisplay(client.loan_type)} {client.lender ? `• ${client.lender}` : ''} {client.credit_score ? `• Credit: ${client.credit_score}` : ''}
+              </p>
             </div>
           </div>
           

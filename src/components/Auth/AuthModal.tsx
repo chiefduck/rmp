@@ -46,18 +46,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMo
       return
     }
 
-
-
     try {
       if (isSignUp) {
-        console.log('Starting signup...')
         const { error } = await signUp(formData.email, password, {
           full_name: formData.fullName,
           company: formData.company
         })
         if (error) throw error
         
-        console.log('Signup successful')
         setSuccessMessage('Success! Please check your email for a verification link to complete your signup.')
         clearForm()
         
@@ -67,26 +63,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMo
         }, 5000)
         
       } else {
-        console.log('Starting signin...')
         const { data, error } = await signIn(formData.email, password)
-        
-        console.log('Signin response:', { 
-          hasData: !!data, 
-          hasUser: !!data?.user,
-          hasSession: !!data?.session,
-          error: error?.message 
-        })
         
         if (error) throw error
         
-        console.log('Signin successful, closing modal')
         clearForm()
         onClose()
-        
-        // Force a small delay to let auth state update
-        setTimeout(() => {
-          console.log('Auth state should be updated now')
-        }, 100)
       }
     } catch (error: any) {
       console.error('Auth error:', error)

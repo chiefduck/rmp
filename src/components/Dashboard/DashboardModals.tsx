@@ -119,8 +119,9 @@ export const RateDetailsModal: React.FC<RateDetailsModalProps> = ({
             <div className="text-sm text-gray-600 dark:text-gray-400">
               <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">About This Rate</p>
               <p>
-                This rate is updated daily from Mortgage News Daily. Rates shown are national averages 
-                and actual rates may vary based on credit score, loan amount, and other factors.
+                Rates are aggregated from publicly available market sources and updated regularly. 
+                Rates shown are national averages and actual rates may vary based on credit score, 
+                loan amount, and other factors. Always verify rates with your lender.
               </p>
             </div>
           </div>

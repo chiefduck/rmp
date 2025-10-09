@@ -217,7 +217,7 @@ export const RateMonitor: React.FC = () => {
   const refreshRates = async () => {
     setLoading(true)
     try {
-      info('Fetching fresh rates from MND...')
+      info('Updating market rates...')
       const freshDataSuccess = await RateService.fetchFreshRates()
       
       if (freshDataSuccess) {
@@ -225,7 +225,7 @@ export const RateMonitor: React.FC = () => {
         await fetchRates()
         await fetchRealAlerts()
         setLastRefresh(new Date())
-        info('✅ Fresh rates updated successfully!')
+        info('✅ Rates updated successfully!')
       } else {
         await fetchRates()
         await fetchRealAlerts()
@@ -299,7 +299,7 @@ export const RateMonitor: React.FC = () => {
               <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 dark:text-gray-400 px-2 md:px-3 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-lg max-w-full">
                 <Activity className="w-3 h-3 md:w-4 md:h-4 text-blue-600 dark:text-blue-400 animate-pulse flex-shrink-0" />
                 <span className="font-medium text-blue-900 dark:text-blue-300 truncate">
-                  MND: {formatDateOnly(dataLastUpdated)}
+                  Data: {formatDateOnly(dataLastUpdated)}
                 </span>
               </div>
             )}
@@ -401,7 +401,7 @@ export const RateMonitor: React.FC = () => {
         <CardHeader>
           <CardTitle className="text-base md:text-lg">Rate Comparison - Live Market Data</CardTitle>
           <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400">
-            Real-time data from Mortgage News Daily - updates automatically
+            Real-time mortgage rate data - updates automatically every 15 minutes
           </p>
         </CardHeader>
         <CardContent>
@@ -454,10 +454,14 @@ export const RateMonitor: React.FC = () => {
             </table>
           </div>
           
-          <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
-            <p>* Data sourced directly from Mortgage News Daily Rate Index</p>
-            <p>* Red = rate increase, Green = rate decrease, Blue = no change</p>
-            <p>* Updates automatically via real-time subscription</p>
+          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700">
+            <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100 mb-2">⚠️ Disclaimer</h4>
+            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+              <p>• Rates shown are national averages for reference only and may not reflect current market conditions</p>
+              <p>• Always verify rates directly with your lender before making financial decisions</p>
+              <p>• Rate Monitor Pro aggregates data from publicly available market sources</p>
+              <p>• Updates automatically via real-time monitoring - Red = rate increase, Green = rate decrease</p>
+            </div>
           </div>
         </CardContent>
       </Card>

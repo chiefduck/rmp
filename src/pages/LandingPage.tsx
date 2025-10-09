@@ -7,13 +7,13 @@ import { LandingFooter } from '../components/Layout/LandingFooter'
 interface LandingPageProps {
   onLogin: () => void
   onGetStarted: () => void
-  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void  // ADD THIS
+  onLegalClick: (page: 'privacy' | 'terms' | 'cookies' | 'compliance') => void
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ 
   onLogin, 
   onGetStarted, 
-  onLegalClick  // ADD THIS
+  onLegalClick
 }) => {
   const features = [
     {
@@ -43,43 +43,39 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   ]
 
   const benefits = [
-    'Save 10+ hours per week with automation',
-    'Never miss a rate opportunity again',
-    'Increase conversion rates by 35%',
+    'Save hours per week with automation',
+    'Monitor rates 24/7 so you don\'t have to',
+    'Help capture more opportunities',
     'Professional AI-powered insights',
-    '24/7 rate monitoring and alerts',
+    'Automated rate alerts and follow-ups',
     'Complete client relationship management'
   ]
 
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      title: "Senior Loan Officer",
-      company: "Premier Mortgage Group",
+      name: "M.C.",
+      title: "Loan Officer",
+      company: "California",
       image: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      quote: "Rate Monitor Pro has transformed my business. I'm closing 40% more loans and saving 15 hours per week on follow-ups. The AI calling feature alone pays for itself.",
+      quote: "This tool has completely changed how I manage my pipeline. The automated alerts mean I never miss a rate opportunity, and the CRM keeps everything organized.",
       rating: 5
     },
     {
-      name: "Michael Chen",
+      name: "J.T.",
       title: "Mortgage Broker",
-      company: "Elite Home Loans",
+      company: "Texas",
       image: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      quote: "Never miss a rate opportunity again. The real-time alerts and automated client outreach have increased my conversion rate by 35%. Best investment I've made.",
+      quote: "Real-time monitoring and automated outreach have made my workflow so much more efficient. Great investment for any serious mortgage professional.",
       rating: 5
     },
     {
-      name: "Jennifer Rodriguez",
-      title: "Branch Manager",
-      company: "Coastal Mortgage Solutions",
+      name: "K.R.",
+      title: "Senior Loan Officer",
+      company: "Florida",
       image: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop",
-      quote: "The AI insights are incredible. It tells me exactly which clients to call and when. My team's productivity has doubled since we started using Rate Monitor Pro.",
+      quote: "The AI insights help me prioritize which clients to reach out to. Everything I need in one place - monitoring, CRM, and automation.",
       rating: 5
     }
-  ]
-
-  const companies = [
-    "Quicken Loans", "Wells Fargo", "Chase", "Bank of America", "Rocket Mortgage", "loanDepot"
   ]
 
   const faqs = [
@@ -93,7 +89,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     },
     {
       question: "How accurate are the rate updates?",
-      answer: "We pull rates from multiple sources every 15 minutes, ensuring you have the most current market data. Our system monitors 30yr, FHA, VA, and 15yr rates with 99.9% uptime."
+      answer: "We aggregate rates from multiple market sources and update frequently to ensure you have current market data. Our system monitors 30yr, FHA, VA, and 15yr rates with high reliability."
     },
     {
       question: "Is there a setup fee or contract?",
@@ -105,7 +101,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     },
     {
       question: "How much time will this save me?",
-      answer: "Our users report saving 10-15 hours per week on client management, rate monitoring, and follow-ups. The automation handles routine tasks so you can focus on closing deals."
+      answer: "Our users report significant time savings on client management, rate monitoring, and follow-ups. The automation handles routine tasks so you can focus on closing deals."
     }
   ]
 
@@ -135,30 +131,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </p>
             
             <div className="flex justify-center">
-  <Button 
-    size="lg" 
-    onClick={onGetStarted}
-    className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
-  >
-    Start Free Trial
-    <ArrowRight className="w-5 h-5 ml-2" />
-  </Button>
-</div>
-
+              <Button 
+                size="lg" 
+                onClick={onGetStarted}
+                className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
+              >
+                Start Free Trial
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
             
             <p className="text-gray-400 mt-6">
               14-day free trial • Cancel anytime
             </p>
             
-            {/* Social Proof */}
-            <div className="mt-12 pt-8 border-t border-gray-700">
-              <p className="text-gray-400 mb-6">Trusted by 500+ mortgage professionals</p>
-              <div className="flex flex-wrap justify-center items-center gap-8 opacity-60">
-                {companies.map((company, index) => (
-                  <div key={index} className="text-gray-300 font-medium">
-                    {company}
-                  </div>
-                ))}
+           
+            {/* Social Proof - Modern Cards */}
+            <div className="mt-16">
+              <p className="text-gray-400 mb-8 text-lg">Everything you need to never miss a rate opportunity</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
+                  <div className="text-3xl font-bold text-blue-400 mb-2">4 Loan Types</div>
+                  <div className="text-sm text-gray-300">30yr • FHA • VA • 15yr</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
+                  <div className="text-3xl font-bold text-green-400 mb-2">24/7</div>
+                  <div className="text-sm text-gray-300">Automated Monitoring</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/15 transition-all">
+                  <div className="text-3xl font-bold text-purple-400 mb-2">Instant</div>
+                  <div className="text-sm text-gray-300">Email & AI Call Alerts</div>
+                </div>
               </div>
             </div>
           </div>
@@ -198,36 +201,36 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-{/* About Section */}
-<section id="about" className="py-20 bg-white">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="text-center mb-12">
-      <h2 className="text-4xl font-bold text-gray-900 mb-4">
-        Built by Mortgage Professionals, For Mortgage Professionals
-      </h2>
-      <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-        We understand the challenges of managing rate-sensitive clients because we've been there. 
-        Rate Monitor Pro was created to solve the real problems mortgage professionals face every day: 
-        missed opportunities, time-consuming follow-ups, and inefficient client management.
-      </p>
-    </div>
-    
-    <div className="grid md:grid-cols-3 gap-8 mt-12">
-      <div className="text-center">
-        <div className="text-4xl font-bold text-blue-600 mb-2">500+</div>
-        <div className="text-gray-600">Active Users</div>
-      </div>
-      <div className="text-center">
-        <div className="text-4xl font-bold text-blue-600 mb-2">10K+</div>
-        <div className="text-gray-600">Clients Monitored</div>
-      </div>
-      <div className="text-center">
-        <div className="text-4xl font-bold text-blue-600 mb-2">$50M+</div>
-        <div className="text-gray-600">Loans Closed</div>
-      </div>
-    </div>
-  </div>
-</section>
+      {/* About Section */}
+      <section id="about" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              Built by Mortgage Professionals, For Mortgage Professionals
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              We understand the challenges of managing rate-sensitive clients because we've been there. 
+              Rate Monitor Pro was created to solve the real problems mortgage professionals face every day: 
+              missed opportunities, time-consuming follow-ups, and inefficient client management.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 mt-12">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-2">Real-Time</div>
+              <div className="text-gray-600">Rate Updates</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-2">Automated</div>
+              <div className="text-gray-600">Client Alerts</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-blue-600 mb-2">AI-Powered</div>
+              <div className="text-gray-600">Insights</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Benefits Section */}
       <div className="py-24 bg-gray-50">
@@ -235,7 +238,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-8">
-                Why Top Mortgage Professionals Choose Rate Monitor Pro
+                Why Mortgage Professionals Choose Rate Monitor Pro
               </h2>
               <div className="space-y-4">
                 {benefits.map((benefit, index) => (
@@ -247,28 +250,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
             
-            <div className="bg-white rounded-2xl p-8 shadow-2xl">
-              <div className="text-center">
-                <TrendingUp className="w-16 h-16 text-green-600 mx-auto mb-6" />
-                <h3 className="text-3xl font-bold text-gray-900 mb-4">
-                  Average Results
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Time Saved Weekly</span>
-                    <span className="text-2xl font-bold text-green-600">10+ hours</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Conversion Increase</span>
-                    <span className="text-2xl font-bold text-green-600">35%</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Revenue Growth</span>
-                    <span className="text-2xl font-bold text-green-600">$50K+</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl p-8 shadow-2xl text-white">
+  <div className="text-center">
+    <h3 className="text-3xl font-bold mb-6">
+      Your Daily Workflow
+    </h3>
+    <div className="space-y-6 text-left">
+      <div className="flex items-start space-x-4">
+        <div className="bg-white/20 rounded-full p-2 mt-1">
+          <span className="text-xl font-bold">1</span>
+        </div>
+        <div>
+          <div className="font-semibold text-lg">Set Target Rates</div>
+          <div className="text-blue-100 text-sm">Add clients and their ideal rates</div>
+        </div>
+      </div>
+      <div className="flex items-start space-x-4">
+        <div className="bg-white/20 rounded-full p-2 mt-1">
+          <span className="text-xl font-bold">2</span>
+        </div>
+        <div>
+          <div className="font-semibold text-lg">We Monitor 24/7</div>
+          <div className="text-blue-100 text-sm">Rates checked every 15 minutes</div>
+        </div>
+      </div>
+      <div className="flex items-start space-x-4">
+        <div className="bg-white/20 rounded-full p-2 mt-1">
+          <span className="text-xl font-bold">3</span>
+        </div>
+        <div>
+          <div className="font-semibold text-lg">Get Instant Alerts</div>
+          <div className="text-blue-100 text-sm">Email notifications when rates hit</div>
+        </div>
+      </div>
+      <div className="flex items-start space-x-4">
+        <div className="bg-white/20 rounded-full p-2 mt-1">
+          <span className="text-xl font-bold">4</span>
+        </div>
+        <div>
+          <div className="font-semibold text-lg">Close More Deals</div>
+          <div className="text-blue-100 text-sm">Never miss an opportunity</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
           </div>
         </div>
       </div>
@@ -281,7 +307,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               What Mortgage Professionals Say
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              See how Rate Monitor Pro is transforming businesses across the industry
+              Early users are already seeing results with Rate Monitor Pro
             </p>
           </div>
 
@@ -402,18 +428,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
- {/* CTA Section */}
- <div className="py-24 bg-white">
+      {/* CTA Section */}
+      <div className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
             Ready to Transform Your Mortgage Business?
           </h2>
           <p className="text-xl text-gray-600 mb-8">
-            Join thousands of mortgage professionals who are already using Rate Monitor Pro to grow their business.
+            Join mortgage professionals who are using Rate Monitor Pro to streamline their workflow.
           </p>
           <Button 
             size="lg" 
-            onClick={() => onGetStarted(true)}
+            onClick={onGetStarted}
             className="px-8 py-4 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-2xl transform hover:scale-105 transition-all duration-200"
           >
             Get Started Today
@@ -424,9 +450,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Footer */}
       <LandingFooter 
-    onLogin={onLogin} 
-    onLegalClick={onLegalClick}  // ADD THIS
-  />
+        onLogin={onLogin} 
+        onLegalClick={onLegalClick}
+      />
     </div>
   )
 }

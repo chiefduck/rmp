@@ -40,17 +40,15 @@ export class RateService {
         .select('*')
         .order('rate_date', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(50) // Get more records to ensure we have latest for each type
+        .limit(50)
   
       if (error) throw error
   
-      // Group by term_years + loan_type to get latest rate for each combination
       const ratesByType: Record<string, RateData> = {}
       
       data?.forEach(rate => {
         const key = `${rate.term_years}yr_${rate.loan_type}`
         
-        // Only keep if this is newer than what we have
         if (!ratesByType[key] || 
             new Date(rate.rate_date) > new Date(ratesByType[key].rate_date) ||
             (rate.rate_date === ratesByType[key].rate_date && 
@@ -66,7 +64,6 @@ export class RateService {
     }
   }
 
-  // Get specific rate by loan type and term
   static async getCurrentRate(termYears: number, loanType: string = 'conventional'): Promise<RateData | null> {
     try {
       const { data, error } = await supabase
@@ -86,7 +83,6 @@ export class RateService {
     }
   }
 
-  // Fetch rate history for a specific term and loan type
   static async getRateHistory(termYears: number, loanType: string = 'conventional', days: number = 30): Promise<RateTrend[]> {
     try {
       const startDate = new Date()
@@ -102,7 +98,6 @@ export class RateService {
 
       if (error) throw error
 
-      // Calculate daily changes
       const trends: RateTrend[] = []
       data?.forEach((rate, index) => {
         const trend: RateTrend = {
@@ -124,8 +119,6 @@ export class RateService {
     }
   }
 
-  // Fetch fresh rates from the Edge Function and update database
-  // File: src/lib/rateService.ts - Update this function:
   static async fetchFreshRates(): Promise<boolean> {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
@@ -151,7 +144,9 @@ export class RateService {
       const result = await response.json()
       
       if (result.success) {
-        console.log(`Successfully fetched ${result.rates_fetched} fresh rates`)
+        if (import.meta.env.DEV) {
+          console.log(`Successfully fetched ${result.rates_fetched} fresh rates`)
+        }
         return true
       } else {
         console.error('Rate fetch failed:', result.error)
@@ -163,7 +158,6 @@ export class RateService {
     }
   }
 
-  // Store new rate data (for manual integration)
   static async storeRateData(rates: Omit<RateData, 'id' | 'created_at'>[]): Promise<boolean> {
     try {
       const ratesWithTimestamp = rates.map(rate => ({
@@ -185,7 +179,6 @@ export class RateService {
     }
   }
 
-  // Get rate alerts for clients whose target rates have been reached
   static async checkRateAlerts(): Promise<RateAlert[]> {
     try {
       const { data: clients, error } = await supabase
@@ -199,7 +192,6 @@ export class RateService {
       const alerts: RateAlert[] = []
 
       clients?.forEach(client => {
-        // Map client loan_type to our rate keys
         let rateKey: string
         
         switch (client.loan_type) {
@@ -240,7 +232,6 @@ export class RateService {
     }
   }
 
-  // Get market rate for mortgage calculations (replaces hardcoded 6.2%)
   static async getMarketRate(loanType: string = 'conventional', termYears: number = 30): Promise<number> {
     try {
       const rateData = await this.getCurrentRate(termYears, loanType)
@@ -249,23 +240,20 @@ export class RateService {
         return rateData.rate_value
       }
 
-      // Fallback to any 30-year conventional rate if specific type not found
       if (loanType !== 'conventional' || termYears !== 30) {
         const fallbackRate = await this.getCurrentRate(30, 'conventional')
         if (fallbackRate) return fallbackRate.rate_value
       }
 
-      // Final fallback to prevent errors in calculations
       console.warn('No market rate found, using fallback rate of 6.5%')
       return 6.5
       
     } catch (error) {
       console.error('Error getting market rate:', error)
-      return 6.5 // Safe fallback
+      return 6.5
     }
   }
 
-  // Calculate rate-based opportunity score
   static calculateOpportunityScore(currentRate: number, marketRate: number, loanAmount: number): {
     monthlySavings: number
     annualSavings: number
@@ -283,7 +271,6 @@ export class RateService {
       }
     }
 
-    // Calculate monthly payment difference (simplified P&I calculation)
     const currentMonthlyRate = currentRate / 100 / 12
     const marketMonthlyRate = marketRate / 100 / 12
     const termMonths = 30 * 12
@@ -296,22 +283,21 @@ export class RateService {
     const monthlySavings = Math.max(0, currentPayment - marketPayment)
     const annualSavings = monthlySavings * 12
 
-    // Determine opportunity level and score
     let opportunityLevel: 'excellent' | 'good' | 'moderate' | 'low'
     let score: number
 
     if (monthlySavings >= 300) {
       opportunityLevel = 'excellent'
-      score = 90 + Math.min(10, (monthlySavings - 300) / 50) // 90-100
+      score = 90 + Math.min(10, (monthlySavings - 300) / 50)
     } else if (monthlySavings >= 150) {
       opportunityLevel = 'good'
-      score = 70 + ((monthlySavings - 150) / 150) * 20 // 70-90
+      score = 70 + ((monthlySavings - 150) / 150) * 20
     } else if (monthlySavings >= 50) {
       opportunityLevel = 'moderate'
-      score = 40 + ((monthlySavings - 50) / 100) * 30 // 40-70
+      score = 40 + ((monthlySavings - 50) / 100) * 30
     } else {
       opportunityLevel = 'low'
-      score = (monthlySavings / 50) * 40 // 0-40
+      score = (monthlySavings / 50) * 40
     }
 
     return {
@@ -322,7 +308,6 @@ export class RateService {
     }
   }
 
-  // Get rate trends summary for dashboard
   static async getRateTrendsSummary(): Promise<{
     trend30yr: 'up' | 'down' | 'stable'
     trend15yr: 'up' | 'down' | 'stable'
@@ -367,9 +352,10 @@ export class RateService {
     }
   }
 
-  // Legacy method for backward compatibility - now uses real data
   static generateMockRates(days: number = 30): Omit<RateData, 'id' | 'created_at'>[] {
-    console.warn('generateMockRates is deprecated - use fetchFreshRates() for real data')
+    if (import.meta.env.DEV) {
+      console.warn('generateMockRates is deprecated - use fetchFreshRates() for real data')
+    }
     
     const rates: Omit<RateData, 'id' | 'created_at'>[] = []
     const baseRates = { 
@@ -384,7 +370,6 @@ export class RateService {
 
       Object.entries(baseRates).forEach(([term, loanTypes]) => {
         Object.entries(loanTypes).forEach(([loanType, baseRate]) => {
-          // Add some realistic variation
           const variation = (Math.random() - 0.5) * 0.2 + Math.sin(i * 0.1) * 0.1
           const rate = baseRate + variation
 
@@ -403,27 +388,20 @@ export class RateService {
   }
 }
 
-// Rate webhook integration for automated updates
 export const createRateWebhook = async (rateData: Omit<RateData, 'id' | 'created_at'>[]): Promise<boolean> => {
   try {
     const success = await RateService.storeRateData(rateData)
     
     if (success) {
-      // Trigger rate alert checks
       const alerts = await RateService.checkRateAlerts()
       
-      // Log alerts for now - in production, send notifications
-      if (alerts.length > 0) {
+      if (alerts.length > 0 && import.meta.env.DEV) {
         console.log('Rate alerts triggered:', alerts)
-        
-        // TODO: Implement notification system
-        // - Email alerts to clients
-        // - SMS notifications
-        // - Dashboard notifications
-        // - Slack/Teams integration
       }
       
-      console.log(`Processed ${rateData.length} rate updates, triggered ${alerts.length} alerts`)
+      if (import.meta.env.DEV) {
+        console.log(`Processed ${rateData.length} rate updates, triggered ${alerts.length} alerts`)
+      }
     }
     
     return success

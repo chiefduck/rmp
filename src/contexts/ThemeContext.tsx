@@ -38,8 +38,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     
     // Save to localStorage
     localStorage.setItem('theme', theme)
-    
-    console.log('Theme applied:', theme, 'Classes:', root.classList.toString())
   }, [theme])
 
   // Sync with profile theme when available
@@ -51,15 +49,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light'
-    console.log('Toggling theme from', theme, 'to', newTheme)
-    
     setTheme(newTheme)
     
     // Save to profile if available
     if (profile && updateProfile) {
       try {
         await updateProfile({ theme: newTheme })
-        console.log('Theme saved to profile:', newTheme)
       } catch (error) {
         console.error('Failed to save theme preference:', error)
       }
