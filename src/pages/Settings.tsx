@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { User, Bell, CreditCard, Key, Trash2, Mail, Save, Loader2, AlertCircle, Check, Settings as SettingsIcon, Phone } from 'lucide-react'
+import { User, Bell, CreditCard, Key, Trash2, Mail, Save, Loader2, AlertCircle, Check, Settings as SettingsIcon, Phone, Users as UsersIcon } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, Profile, EmailPreferences, NotificationPreferences } from '../lib/supabase'
@@ -21,17 +21,134 @@ export const Settings: React.FC = () => {
   const [billingHistory, setBillingHistory] = useState<any[]>([])
   const [loadingBilling, setLoadingBilling] = useState(false)
 
+  // Calling settings state
+  const [autoCallingEnabled, setAutoCallingEnabled] = useState(false)
+  const [brokerCallsEnabled, setBrokerCallsEnabled] = useState(false)
+  const [brokerPhone, setBrokerPhone] = useState('')
+  const [callsRemaining, setCallsRemaining] = useState(50)
+  const [savingCallSettings, setSavingCallSettings] = useState(false)
+
   useEffect(() => {
     if (profile) setProfileData({ full_name: profile.full_name || '', company: profile.company || '', phone: profile.phone || '', email: profile.email || user?.email || '' })
   }, [profile, user])
 
   useEffect(() => {
-    if (user) { fetchEmailPreferences(); fetchNotificationPreferences() }
+    if (user) { 
+      fetchEmailPreferences()
+      fetchNotificationPreferences()
+      fetchCallSettings()
+    }
   }, [user])
 
   useEffect(() => {
     if (activeTab === 'billing' && user && hasActiveSubscription) fetchBillingHistory()
   }, [activeTab, user, hasActiveSubscription])
+
+  const fetchCallSettings = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('auto_calling_enabled, broker_calls_enabled, broker_phone_number, calls_remaining')
+        .eq('id', user.id)
+        .single()
+      
+      if (data) {
+        setAutoCallingEnabled(data.auto_calling_enabled || false)
+        setBrokerCallsEnabled(data.broker_calls_enabled || false)
+        setBrokerPhone(data.broker_phone_number || '')
+        setCallsRemaining(data.calls_remaining || 50)
+      }
+    } catch (error) {
+      console.error('Error fetching call settings:', error)
+    }
+  }
+
+  const saveCallSettings = async () => {
+    if (!user) return
+    setSavingCallSettings(true)
+    setMessage(null)
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          auto_calling_enabled: autoCallingEnabled,
+          broker_calls_enabled: brokerCallsEnabled,
+          broker_phone_number: brokerPhone
+        })
+        .eq('id', user.id)
+      
+      if (error) throw error
+      
+      setMessage({ type: 'success', text: '✅ Call settings saved successfully!' })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save call settings' })
+    } finally {
+      setSavingCallSettings(false)
+    }
+  }
+
+  const testCallSystem = async (type: 'client' | 'broker') => {
+    if (type === 'broker' && !brokerPhone) {
+      setMessage({ type: 'error', text: 'Please add your broker phone number first!' })
+      return
+    }
+    
+    const { data: client } = await supabase
+      .from('clients')
+      .select('*')
+      .limit(1)
+      .single()
+    
+    if (!client) {
+      setMessage({ type: 'error', text: 'No clients found. Add a client first to test!' })
+      return
+    }
+    
+    const confirmed = confirm(
+      type === 'broker'
+        ? `Test broker call to ${brokerPhone}?\n\nYou'll receive a call in ~30 seconds.`
+        : `Test client call to ${client.phone}?\n\nThey'll receive a call in ~30 seconds.`
+    )
+    
+    if (!confirmed) return
+    
+    setLoading(true)
+    
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/make-call`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            clientId: client.id,
+            userId: user?.id,
+            callType: type === 'broker' ? 'broker-only' : 'client-only'
+          })
+        }
+      )
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `✅ ${type === 'broker' ? 'Broker' : 'Client'} call initiated! Check your phone in ~30 seconds.` 
+        })
+      } else {
+        setMessage({ type: 'error', text: `❌ Error: ${result.error}` })
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchEmailPreferences = async () => {
     if (!user) return
@@ -199,7 +316,6 @@ export const Settings: React.FC = () => {
 
   return (
     <div className="space-y-4 md:space-y-6 pb-20 md:pb-6 px-2 md:px-0">
-      {/* Header */}
       <div className="relative overflow-hidden rounded-2xl md:rounded-3xl">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
         <div className="relative backdrop-blur-sm bg-white/10 border border-white/20 rounded-2xl md:rounded-3xl p-4 md:p-8 text-white">
@@ -215,7 +331,6 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* Message Banner */}
       {message && (
         <div className={`relative backdrop-blur-sm rounded-xl md:rounded-2xl p-3 md:p-4 border ${message.type === 'success' ? 'bg-green-50/60 dark:bg-green-900/20 border-green-200/50 dark:border-green-700/50' : 'bg-red-50/60 dark:bg-red-900/20 border-red-200/50 dark:border-red-700/50'}`}>
           <div className="flex items-center gap-2">
@@ -225,22 +340,13 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* Mobile Tab Selector */}
       <div className="lg:hidden relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl p-2">
-        <select
-          value={activeTab}
-          onChange={(e) => setActiveTab(e.target.value as TabType)}
-          className="w-full px-4 py-3 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 font-medium"
-        >
-          {tabs.map(tab => (
-            <option key={tab.id} value={tab.id}>{tab.label}</option>
-          ))}
+        <select value={activeTab} onChange={(e) => setActiveTab(e.target.value as TabType)} className="w-full px-4 py-3 bg-white/70 dark:bg-gray-700/70 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 font-medium">
+          {tabs.map(tab => (<option key={tab.id} value={tab.id}>{tab.label}</option>))}
         </select>
       </div>
 
-      {/* Desktop Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Desktop Sidebar */}
         <div className="hidden lg:block lg:col-span-1">
           <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-2xl p-2">
             <nav className="space-y-1">
@@ -257,11 +363,9 @@ export const Settings: React.FC = () => {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="lg:col-span-3">
           <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
             
-            {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
@@ -282,7 +386,7 @@ export const Settings: React.FC = () => {
                     <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent text-sm md:text-base" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email (Disabled for MVP)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
                     <input type="email" value={profileData.email} disabled className="w-full px-3 md:px-4 py-2.5 md:py-3 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 cursor-not-allowed text-sm md:text-base" />
                     <p className="text-xs md:text-sm text-gray-500 mt-2">Email changes require verification. Contact support@ratemonitorpro.com</p>
                   </div>
@@ -294,7 +398,6 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Email Preferences Tab */}
             {activeTab === 'email' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
@@ -328,8 +431,7 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
+{activeTab === 'notifications' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">Notification Preferences</h2>
@@ -360,8 +462,7 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Billing Tab */}
-            {activeTab === 'billing' && (
+{activeTab === 'billing' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">Billing & Subscription</h2>
@@ -427,23 +528,136 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Auto-Calling Tab */}
             {activeTab === 'calling' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">Auto-Calling Preferences</h2>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">Configure automated calling settings</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1 md:mb-2">AI Calling Settings</h2>
+                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400">Configure automated calling preferences</p>
                 </div>
-                <div className="relative overflow-hidden bg-gradient-to-br from-purple-50/60 to-blue-50/60 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200/50 dark:border-purple-700/50 rounded-xl p-6 md:p-8 text-center">
-                  <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1 rounded-bl-xl text-xs md:text-sm font-medium">Coming Soon</div>
-                  <Phone className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 md:mb-4 text-purple-600 dark:text-purple-400" />
-                  <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Automated Calling with Bland AI</h3>
-                  <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 max-w-md mx-auto">Configure call schedules, scripts, and preferences for automated client outreach. Available in the next release.</p>
+
+                {/* Calls Remaining Badge */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-1">AI Calling Credits</h3>
+                      <p className="text-blue-100 text-sm">Resets monthly on your billing date</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-4xl font-bold">{callsRemaining}</div>
+                      <div className="text-sm text-blue-200">calls remaining</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Client Auto-Calling */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Phone className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Client Auto-Calling</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Automatically call your clients when their target rates are reached. Our AI will deliver a professional message about their opportunity.
+                      </p>
+                      
+                      <label className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <input type="checkbox" checked={autoCallingEnabled} onChange={(e) => setAutoCallingEnabled(e.target.checked)} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100">Enable automatic client calling</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">AI will call clients when opportunities arise</div>
+                        </div>
+                      </label>
+
+                      {autoCallingEnabled && (
+                        <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="flex items-start gap-2">
+                            <Bell className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-sm text-green-800 dark:text-green-300">
+                              <strong>Active:</strong> Your clients will receive calls when their target rates are hit. You'll get email notifications and can view call transcripts in your dashboard.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Broker Calling */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <UsersIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Broker Instant Alerts 🔥</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Get a phone call IMMEDIATELY when opportunities arise, so you never miss a chance to close. We'll call you first, then your client 2 minutes later.
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Phone Number</label>
+                          <input type="tel" value={brokerPhone} onChange={(e) => setBrokerPhone(e.target.value)} placeholder="+1 (555) 123-4567" className="w-full px-4 py-3 bg-white/50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent" />
+                          <p className="text-xs text-gray-500 mt-2">Include country code (e.g., +1 for US)</p>
+                        </div>
+                        
+                        <label className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                          <input type="checkbox" checked={brokerCallsEnabled} onChange={(e) => setBrokerCallsEnabled(e.target.checked)} disabled={!brokerPhone} className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50" />
+                          <div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">Call me when opportunities arise</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">Get instant phone alerts for hot leads</div>
+                          </div>
+                        </label>
+
+                        {brokerCallsEnabled && brokerPhone && (
+                          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                            <div className="text-sm text-purple-800 dark:text-purple-300 space-y-2">
+                              <p><strong>🎯 How it works:</strong></p>
+                              <ol className="list-decimal list-inside space-y-1 ml-2">
+                                <li>Target rate is hit for a client</li>
+                                <li>We call YOU first at {brokerPhone}</li>
+                                <li>You get a 1-minute alert about the opportunity</li>
+                                <li>2 minutes later, we call your client</li>
+                                <li>You receive transcripts of both calls</li>
+                              </ol>
+                              <p className="mt-3"><strong>💡 Pro tip:</strong> This gives you a heads-up before your client gets called, so you can prepare or reach out personally first.</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end">
+                  <Button onClick={saveCallSettings} loading={savingCallSettings} className="px-8">Save Call Settings</Button>
+                </div>
+
+                {/* Usage Info */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">📊 Call Usage & Costs</h4>
+                  <div className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+                    <p>• Each client call uses ~1 credit (~$0.18)</p>
+                    <p>• Each broker alert uses ~0.5 credits (~$0.09)</p>
+                    <p>• Your plan includes 50 calls/month</p>
+                    <p>• Need more? Contact support to increase your limit</p>
+                  </div>
+                </div>
+
+                {/* Test Buttons */}
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+                  <h4 className="font-semibold text-yellow-900 dark:text-yellow-300 mb-4">🧪 Testing & Development</h4>
+                  <div className="flex gap-3">
+                    <Button onClick={() => testCallSystem('broker')} variant="outline" className="border-yellow-300 dark:border-yellow-700">Test Broker Call</Button>
+                    <Button onClick={() => testCallSystem('client')} variant="outline" className="border-yellow-300 dark:border-yellow-700">Test Client Call</Button>
+                  </div>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-3">These buttons will trigger test calls using your first client's data. Remove this section before production launch.</p>
                 </div>
               </div>
             )}
 
-            {/* Password Tab */}
             {activeTab === 'password' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
@@ -471,7 +685,6 @@ export const Settings: React.FC = () => {
               </div>
             )}
 
-            {/* Danger Zone Tab */}
             {activeTab === 'danger' && (
               <div className="space-y-4 md:space-y-6">
                 <div>
