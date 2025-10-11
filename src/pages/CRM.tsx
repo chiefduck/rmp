@@ -1,11 +1,12 @@
+// src/pages/CRM.tsx - UPDATED with Pipeline Overview
 import React, { useState, useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Plus, Archive, CheckCircle, Users } from 'lucide-react'
+import { Plus, Archive, CheckCircle, Users, X } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { PipelineStats } from '../components/CRM/PipelineStats'
-import { RateMonitorSection } from '../components/CRM/RateMonitorSection'
+import { PipelineOverview } from '../components/CRM/PipelineOverview'
 import { ActivePipelineSection } from '../components/CRM/ActivePipelineSection'
-import { AddClientModal } from '../components/CRM/AddClientModal'
+import { AddPipelineClientModal } from '../components/CRM/AddPipelineClientModal'
 import { EditClientModal } from '../components/CRM/EditClientModal'
 import { ClientDetailsModal } from '../components/CRM/ClientDetailsModal'
 import { ClosingModal } from '../components/CRM/ClosingModal'
@@ -39,6 +40,7 @@ interface Mortgage {
 }
 
 type ClientFilter = 'active' | 'closed' | 'archived' | 'all'
+type InsightFilter = 'stale' | 'ready' | 'followup' | 'closing' | 'hot' | 'cold' | null
 
 export const CRM: React.FC = () => {
   const { user } = useAuth()
@@ -51,6 +53,7 @@ export const CRM: React.FC = () => {
   const [closedMortgages, setClosedMortgages] = useState<Mortgage[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<ClientFilter>('active')
+  const [insightFilter, setInsightFilter] = useState<InsightFilter>(null)
   
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -276,14 +279,104 @@ export const CRM: React.FC = () => {
     }
   }
 
-  const getFilteredClients = () => {
-    switch (activeFilter) {
-      case 'active': return activeClients
-      case 'closed': return closedClients
-      case 'archived': return archivedClients
-      case 'all': return [...activeClients, ...closedClients, ...archivedClients]
-      default: return activeClients
+  // Handle insight filter clicks
+  const handleInsightFilterClick = (filterType: InsightFilter) => {
+    // Toggle filter if clicking same one
+    if (insightFilter === filterType) {
+      setInsightFilter(null)
+      return
     }
+    
+    // Switch to active tab if not already there
+    if (activeFilter !== 'active') {
+      setActiveFilter('active')
+    }
+    
+    setInsightFilter(filterType)
+  }
+
+  // Calculate days since last contact
+  const getDaysSinceContact = (lastContact?: string): number => {
+    if (!lastContact) return 999
+    const lastContactDate = new Date(lastContact)
+    const today = new Date()
+    const diffTime = today.getTime() - lastContactDate.getTime()
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  }
+
+  // Apply insight filters to active clients
+  const getFilteredByInsight = (clients: Client[]): Client[] => {
+    if (!insightFilter) return clients
+
+    switch (insightFilter) {
+      case 'stale':
+        return clients.filter(c => {
+          const stages = ['new', 'prospect']
+          const daysSince = getDaysSinceContact(c.last_contact)
+          return stages.includes(c.current_stage || '') && daysSince >= 14
+        })
+      
+      case 'ready':
+        return clients.filter(c => {
+          const stages = ['qualified']
+          const daysSince = getDaysSinceContact(c.last_contact)
+          return stages.includes(c.current_stage || '') && daysSince <= 7
+        })
+      
+      case 'followup':
+        return clients.filter(c => {
+          const stages = ['application']
+          const daysSince = getDaysSinceContact(c.last_contact)
+          return stages.includes(c.current_stage || '') && daysSince >= 7
+        })
+      
+      case 'closing':
+        return clients.filter(c => c.current_stage === 'closing')
+      
+      case 'hot':
+        return clients.filter(c => {
+          const daysSince = getDaysSinceContact(c.last_contact)
+          const goodStages = ['qualified', 'application', 'closing']
+          return daysSince <= 7 && goodStages.includes(c.current_stage || '')
+        })
+      
+      case 'cold':
+        return clients.filter(c => {
+          const daysSince = getDaysSinceContact(c.last_contact)
+          return daysSince >= 30
+        })
+      
+      default:
+        return clients
+    }
+  }
+
+  const getFilteredClients = () => {
+    let clients: Client[]
+    
+    switch (activeFilter) {
+      case 'active':
+        clients = activeClients
+        break
+      case 'closed':
+        clients = closedClients
+        break
+      case 'archived':
+        clients = archivedClients
+        break
+      case 'all':
+        clients = [...activeClients, ...closedClients, ...archivedClients]
+        break
+      default:
+        clients = activeClients
+    }
+
+    // Apply insight filter if active
+    if (insightFilter && activeFilter === 'active') {
+      clients = getFilteredByInsight(clients)
+    }
+
+    return clients
   }
 
   const filterTabs = useMemo(() => [
@@ -324,18 +417,37 @@ export const CRM: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Overview - Mobile Responsive */}
-        <PipelineStats activeClients={activeClients} closedMortgages={closedMortgages} />
-
-        {/* Rate Monitor Section - Only show for active filter */}
+        {/* NEW: Pipeline Overview - Only show for active clients */}
         {activeFilter === 'active' && (
-          <RateMonitorSection 
-            mortgages={closedMortgages}
-            onEditMortgage={(m) => { setSelectedMortgage(m); setShowEditMortgageModal(true) }}
-            onViewMortgageDetails={(m) => { setSelectedMortgage(m); setShowMortgageDetailsModal(true) }}
-            onDeleteMortgage={handleDeleteMortgage}
+          <PipelineOverview 
+            clients={activeClients}
+            onFilterClick={handleInsightFilterClick}
+            onViewClient={(client) => {
+              setSelectedClient(client)
+              setShowDetailsModal(true)
+            }}
           />
         )}
+
+        {/* Active Insight Filter Badge */}
+        {insightFilter && activeFilter === 'active' && (
+          <div className="flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                Filtering by: <strong className="capitalize">{insightFilter}</strong>
+              </span>
+            </div>
+            <button
+              onClick={() => setInsightFilter(null)}
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Stats Overview - Mobile Responsive */}
+        <PipelineStats activeClients={activeClients} closedMortgages={closedMortgages} />
 
         {/* Filter Tabs - Mobile Scrollable */}
         <div className="backdrop-blur-sm bg-gray-800/60 border border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
@@ -343,7 +455,10 @@ export const CRM: React.FC = () => {
             {filterTabs.map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setActiveFilter(tab.id as ClientFilter)}
+                onClick={() => {
+                  setActiveFilter(tab.id as ClientFilter)
+                  setInsightFilter(null) // Clear insight filter when changing tabs
+                }}
                 className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                   activeFilter === tab.id
                     ? `bg-${tab.color}-600 text-white`
@@ -371,7 +486,7 @@ export const CRM: React.FC = () => {
         </div>
 
         {/* MODALS */}
-        <AddClientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onClientAdded={fetchData} />
+        <AddPipelineClientModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onClientAdded={fetchData} />
         <EditClientModal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setSelectedClient(null) }} onClientUpdated={fetchData} client={selectedClient} />
         <ClientDetailsModal isOpen={showDetailsModal} onClose={() => { setShowDetailsModal(false); setSelectedClient(null) }} client={selectedClient} onEdit={() => { setShowDetailsModal(false); setShowEditModal(true) }} />
         <ClosingModal isOpen={showClosingModal} onClose={() => { setShowClosingModal(false); setSelectedClient(null) }} client={selectedClient} onConfirm={handleClientClosing} />

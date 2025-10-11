@@ -3,10 +3,10 @@ import { NavLink } from 'react-router-dom'
 import { 
   BarChart3, 
   Users, 
-  MessageSquare, 
+  Target, // NEW ICON!
   Phone, 
   Settings, 
-  CreditCard, // This import is no longer used, but we can leave it for now
+  CreditCard,
   Home,
   Moon,
   Sun,
@@ -25,12 +25,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
   const { signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
-  // ✅ REMOVED: The "Billing" item has been removed from this array.
   const navigation = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
     { path: '/rates', label: 'Rate Monitor', icon: BarChart3 },
     { path: '/crm', label: 'CRM', icon: Users },
-    { path: '/ai-assistant', label: 'AI Assistant', icon: MessageSquare },
     { path: '/calling', label: 'Auto Calling', icon: Phone },
     { path: '/settings', label: 'Settings', icon: Settings }
   ]
@@ -76,14 +74,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
               to={item.path}
               onClick={onClose}
               className={({ isActive }) => `
-                w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left
+                w-full flex items-center justify-between px-4 py-3 rounded-xl text-left
                 transition-all duration-200 group
                 ${isActive ? 'text-white shadow-lg' : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800'}
               `}
               style={({ isActive }) => ( isActive ? { background: 'linear-gradient(to right, #2563eb, #4f46e5)' } : {})}
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <div className="flex items-center space-x-3">
+                <Icon className="w-5 h-5" />
+                <span className="font-medium">{item.label}</span>
+              </div>
+              {item.badge && (
+                <span className="px-2 py-0.5 text-xs font-bold bg-purple-500 text-white rounded-full">
+                  {item.badge}
+                </span>
+              )}
             </NavLink>
           )
         })}
@@ -91,8 +96,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => 
 
       {/* Bottom Actions */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
-        
-        
         <button
           onClick={() => signOut()}
           className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"

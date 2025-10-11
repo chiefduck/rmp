@@ -1,4 +1,4 @@
-// src/App.tsx - Updated with legal page routing
+// src/App.tsx - Updated with Opportunity Finder
 import React, { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -11,7 +11,6 @@ import { AuthModal } from './components/Auth/AuthModal'
 import Dashboard from './pages/Dashboard'
 import { RateMonitor } from './pages/RateMonitor'
 import { CRM } from './pages/CRM'
-import { AIAssistant } from './pages/AIAssistant'
 import { AutoCalling } from './pages/AutoCalling'
 import { Billing } from './pages/Billing'
 import { Settings } from './pages/Settings'
@@ -152,7 +151,6 @@ const AppContent: React.FC = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/rates" element={<RateMonitor />} />
           <Route path="/crm" element={<CRM />} />
-          <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/calling" element={<AutoCalling />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/billing" element={<Billing />} />
