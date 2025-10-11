@@ -2,6 +2,7 @@
 import React from 'react'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { Card, CardContent } from '../ui/Card'
+import { LOAN_TYPE_LABELS } from '../../utils/constants'
 
 interface RateCardProps {
   rate: {
@@ -13,26 +14,13 @@ interface RateCardProps {
     range_52_week_low?: number
     range_52_week_high?: number
   }
-  onClick: () => void
 }
 
-const LOAN_TYPE_LABELS: Record<string, string> = {
-  conventional: '30-Year Fixed',
-  '15yr': '15-Year Fixed',
-  fha: 'FHA Loan',
-  va: 'VA Loan',
-  jumbo: 'Jumbo Loan'
-}
-
-export const RateCard: React.FC<RateCardProps> = ({ rate, onClick }) => {
+export const RateCard: React.FC<RateCardProps> = ({ rate }) => {
   const label = LOAN_TYPE_LABELS[rate.loan_type] || rate.loan_type
 
   return (
-    <Card 
-      hover
-      onClick={onClick}
-      className="cursor-pointer"
-    >
+    <Card hover className="cursor-pointer">
       <CardContent className="p-4 md:p-6">
         <div className="flex items-center justify-between mb-3 md:mb-4">
           <h3 className="font-semibold text-sm md:text-base text-gray-900 dark:text-gray-100 truncate flex-1 pr-2">

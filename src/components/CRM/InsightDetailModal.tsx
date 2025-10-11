@@ -1,277 +1,179 @@
-// src/components/CRM/InsightDetailModal.tsx
-import React from 'react'
-import { X, Phone, Mail, DollarSign, Clock, TrendingUp, AlertCircle, CheckCircle, Flame, Snowflake } from 'lucide-react'
-import { Client } from '../../lib/supabase'
-import { Button } from '../ui/Button'
+
+// src/components/CRM/InsightDetailModal.tsx - Dark Modern UI
+import React, { useRef, useEffect } from 'react'
+import { X, TrendingUp, Clock, DollarSign, AlertCircle, User, Mail, Phone } from 'lucide-react'
+
+interface Client {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  phone?: string
+  current_stage: string
+  loan_amount?: number
+  last_contact?: string
+  days_since_contact?: number
+}
 
 interface InsightDetailModalProps {
   isOpen: boolean
   onClose: () => void
-  insightType: 'stale' | 'ready' | 'followup' | 'closing' | 'hot' | 'cold' | null
+  title: string
+  description: string
   clients: Client[]
+  icon: 'alert' | 'trending' | 'clock' | 'dollar'
+  color: 'red' | 'green' | 'yellow' | 'blue' | 'purple'
   onViewClient?: (client: Client) => void
 }
 
 export const InsightDetailModal: React.FC<InsightDetailModalProps> = ({
-  isOpen,
-  onClose,
-  insightType,
-  clients,
-  onViewClient
+  isOpen, onClose, title, description, clients, icon, color, onViewClient
 }) => {
-  if (!isOpen || !insightType) return null
+  const modalRef = useRef<HTMLDivElement>(null)
 
-  const getInsightConfig = () => {
-    switch (insightType) {
-      case 'stale':
-        return {
-          title: 'Stale Leads',
-          icon: Clock,
-          color: 'red',
-          description: 'These leads are in the New/Prospect stage and haven\'t been contacted in 14+ days (or never).',
-          actionLabel: 'Why this matters',
-          actionText: 'Leads go cold quickly. After 2 weeks without contact, conversion rates drop significantly. Reach out now to re-engage before they\'re lost.',
-          tips: [
-            'Start with the oldest leads first',
-            'Use a friendly "checking in" approach',
-            'Ask if their plans or timeline have changed',
-            'Offer valuable market updates as a conversation starter'
-          ]
-        }
-      case 'ready':
-        return {
-          title: 'Ready to Advance',
-          icon: TrendingUp,
-          color: 'green',
-          description: 'These clients are qualified and you\'ve contacted them recently (within 7 days). They\'re hot and ready to move forward!',
-          actionLabel: 'Why this matters',
-          actionText: 'These are your warmest leads. They\'re qualified, engaged, and ready for the next step. Strike while the iron is hot.',
-          tips: [
-            'Move them to Application stage if ready',
-            'Schedule their next action immediately',
-            'Keep momentum high with quick follow-ups',
-            'Don\'t let these go cold - they\'re ready to close'
-          ]
-        }
-      case 'followup':
-        return {
-          title: 'Need Follow-Up',
-          icon: AlertCircle,
-          color: 'orange',
-          description: 'These clients are in the Application stage but haven\'t been contacted in 7+ days.',
-          actionLabel: 'Why this matters',
-          actionText: 'Applications can stall without consistent communication. These clients need a status update or gentle push to keep moving forward.',
-          tips: [
-            'Check application status first',
-            'Proactively address any blockers',
-            'Set clear next steps and timelines',
-            'Send reminder about required documents'
-          ]
-        }
-      case 'closing':
-        return {
-          title: 'Closing Soon',
-          icon: CheckCircle,
-          color: 'blue',
-          description: 'These clients are in the Closing stage. Final stretch!',
-          actionLabel: 'Why this matters',
-          actionText: 'These are your near-term closings. Stay on top of final details to ensure smooth closings and happy clients.',
-          tips: [
-            'Confirm closing date and time',
-            'Verify all documents are ready',
-            'Coordinate with title company',
-            'Prepare for post-close follow-up'
-          ]
-        }
-      case 'hot':
-        return {
-          title: 'Hot Leads',
-          icon: Flame,
-          color: 'red',
-          description: 'Recently contacted clients in good stages (Qualified, Application, or Closing).',
-          actionLabel: 'Why this matters',
-          actionText: 'These leads are actively engaged. Keep the momentum going with consistent communication.',
-          tips: [
-            'Maintain regular contact',
-            'Be responsive to questions',
-            'Keep them informed of next steps',
-            'Don\'t let them cool off'
-          ]
-        }
-      case 'cold':
-        return {
-          title: 'Cold Leads',
-          icon: Snowflake,
-          color: 'blue',
-          description: 'No contact in 30+ days across all stages.',
-          actionLabel: 'Why this matters',
-          actionText: 'These leads have gone cold. Re-engagement campaigns can revive some, but expect lower conversion rates.',
-          tips: [
-            'Send a "We miss you" message',
-            'Share relevant market updates',
-            'Ask if circumstances have changed',
-            'Consider moving to nurture status if no response'
-          ]
-        }
-      default:
-        return null
+  const colorMap = {
+    red: 'from-red-500 to-red-600',
+    green: 'from-green-500 to-green-600',
+    yellow: 'from-yellow-500 to-yellow-600',
+    blue: 'from-blue-500 to-blue-600',
+    purple: 'from-purple-500 to-purple-600'
+  }
+  
+  const stageColors: Record<string, string> = {
+    prospect: 'bg-gray-800 text-gray-300',
+    qualified: 'bg-blue-900/30 text-blue-300',
+    application: 'bg-purple-900/30 text-purple-300',
+    processing: 'bg-yellow-900/30 text-yellow-300',
+    underwriting: 'bg-orange-900/30 text-orange-300',
+    clear_to_close: 'bg-green-900/30 text-green-300'
+  }
+  
+  const DynamicIcon = ({ className }: { className: string }) => {
+    switch (icon) {
+      case 'alert': return <AlertCircle className={className} />
+      case 'trending': return <TrendingUp className={className} />
+      case 'clock': return <Clock className={className} />
+      case 'dollar': return <DollarSign className={className} />
+      default: return null
     }
   }
 
-  const config = getInsightConfig()
-  if (!config) return null
-
-  const Icon = config.icon
-
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'red':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100'
-      case 'orange':
-        return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100'
-      case 'green':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100'
-      case 'blue':
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100'
-      default:
-        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100'
+  useEffect(() => {
+    if (!isOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) onClose()
     }
-  }
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleEsc)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleEsc)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
-  const getDaysSinceContact = (lastContact?: string): string => {
-    if (!lastContact) return 'Never'
-    const lastContactDate = new Date(lastContact)
-    const today = new Date()
-    const diffTime = today.getTime() - lastContactDate.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    return `${diffDays} days ago`
-  }
+  if (!isOpen) return null
+
+  const formatStage = (stage: string) => 
+    stage.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  const formatCurrency = (amount?: number) => 
+    amount ? `${amount.toLocaleString()}` : 'Not set'
+  const formatDate = (dateString?: string) => 
+    dateString ? new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className={`p-6 border-b ${getColorClasses(config.color)} border`}>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                config.color === 'red' ? 'bg-red-100 dark:bg-red-900/40' :
-                config.color === 'orange' ? 'bg-orange-100 dark:bg-orange-900/40' :
-                config.color === 'green' ? 'bg-green-100 dark:bg-green-900/40' :
-                'bg-blue-100 dark:bg-blue-900/40'
-              }`}>
-                <Icon className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">{config.title}</h2>
-                <p className="text-sm mt-1 opacity-80">{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
-              </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div ref={modalRef} className="bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        
+        <div className={`bg-gradient-to-r ${colorMap[color]} p-6 text-white relative`}>
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-all">
+            <X className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <DynamicIcon className="w-7 h-7" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">{title}</h2>
+              <p className="text-white/90 text-sm">{description}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-sm">
+            <User className="w-4 h-4" />
+            <span className="font-semibold">{clients.length}</span>
+            <span className="opacity-90">Client{clients.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Description */}
-          <div className="space-y-3">
-            <p className="text-gray-700 dark:text-gray-300">
-              {config.description}
-            </p>
-            
-            <div className={`${getColorClasses(config.color)} border rounded-lg p-4`}>
-              <h3 className="font-semibold mb-2">💡 {config.actionLabel}</h3>
-              <p className="text-sm">{config.actionText}</p>
+        <div className="flex-1 overflow-y-auto p-6">
+          {clients.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DynamicIcon className="w-10 h-10 text-gray-500" />
+              </div>
+              <p className="text-gray-400 text-lg">No clients in this category</p>
             </div>
-          </div>
-
-          {/* Tips */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">📋 Action Tips:</h3>
-            <ul className="space-y-2">
-              {config.tips.map((tip, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="text-blue-600 dark:text-blue-400 mt-1">•</span>
-                  <span>{tip}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Client List */}
-          {clients.length > 0 ? (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Clients in this category:</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {clients.map((client) => (
-                  <div
-                    key={client.id}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => {
-                      onViewClient?.(client)
-                      onClose()
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">
-                          {client.first_name} {client.last_name}
-                        </h4>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {client.phone || 'No phone'}
+          ) : (
+            <div className="space-y-4">
+              {clients.map((client) => (
+                <div key={client.id} className="bg-gray-800/50 rounded-xl p-5 hover:bg-gray-800 transition-all border border-gray-700">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-gray-100 mb-2">
+                        {client.first_name} {client.last_name}
+                      </h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${stageColors[client.current_stage] || stageColors.prospect}`}>
+                          {formatStage(client.current_stage)}
+                        </span>
+                        {client.days_since_contact !== undefined && (
+                          <span className="text-sm text-gray-400">
+                            {client.days_since_contact} days since contact
                           </span>
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3 h-3" />
-                            {client.email || 'No email'}
-                          </span>
-                          {client.loan_amount && (
-                            <span className="flex items-center gap-1">
-                              <DollarSign className="w-3 h-3" />
-                              ${(client.loan_amount / 1000).toFixed(0)}K
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">
-                          {client.current_stage}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {getDaysSinceContact(client.last_contact)}
-                        </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No clients in this category yet!</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-300 truncate">{client.email}</span>
+                    </div>
+                    {client.phone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-300">{client.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-sm">
+                      <DollarSign className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-300 font-semibold">{formatCurrency(client.loan_amount)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-300">Last: {formatDate(client.last_contact)}</span>
+                    </div>
+                  </div>
+                  {onViewClient && (
+                    <button
+                      onClick={() => onViewClient(client)}
+                      className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-semibold transition-all shadow-lg"
+                    >
+                      View Full Details
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-800">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="w-full"
-          >
+        <div className="border-t border-gray-800 p-4 bg-gray-800/50">
+          <button onClick={onClose} className="px-6 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-sm font-semibold transition-all">
             Close
-          </Button>
+          </button>
         </div>
       </div>
     </div>

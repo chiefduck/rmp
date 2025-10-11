@@ -1,258 +1,207 @@
-// src/components/RateMonitor/MonitoringDetailModal.tsx
-import React from 'react'
-import { X, Phone, Mail, DollarSign, Clock, Target, TrendingDown, Activity } from 'lucide-react'
-import { MortgageWithDetails } from '../../lib/rateMonitorInsights'
+// src/components/RateMonitor/MonitoringDetailModal.tsx - Dark Modern UI
+import React, { useRef, useEffect } from 'react'
+import { X, TrendingDown, Target, Phone, Calendar, DollarSign, Percent, User, Mail, PhoneCall } from 'lucide-react'
 import { Button } from '../ui/Button'
+
+interface Mortgage {
+  id: string
+  client_name?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+  phone?: string
+  current_rate: number
+  target_rate: number
+  loan_amount: number
+  market_rate?: number
+  savings_potential?: number
+  last_ai_call?: string
+  refi_eligible_date?: string
+  lender?: string
+  term_years?: number
+}
 
 interface MonitoringDetailModalProps {
   isOpen: boolean
   onClose: () => void
-  insightType: 'target' | 'close' | 'stale' | 'calls' | null
-  mortgages: MortgageWithDetails[]
-  onViewMortgage?: (mortgage: MortgageWithDetails) => void
-  totalSavings?: number
+  title: string
+  description: string
+  mortgages: Mortgage[]
+  icon: 'target' | 'trending' | 'phone' | 'calendar'
+  color: 'green' | 'blue' | 'purple' | 'orange'
+  onViewMortgage?: (mortgage: Mortgage) => void
 }
 
 export const MonitoringDetailModal: React.FC<MonitoringDetailModalProps> = ({
-  isOpen,
-  onClose,
-  insightType,
-  mortgages,
-  onViewMortgage,
-  totalSavings = 0
+  isOpen, onClose, title, description, mortgages, icon, color, onViewMortgage
 }) => {
-  if (!isOpen || !insightType) return null
+  const modalRef = useRef<HTMLDivElement>(null)
 
-  const getInsightConfig = () => {
-    switch (insightType) {
-      case 'target':
-        return {
-          title: 'Target Hits',
-          icon: Target,
-          color: 'green',
-          description: 'These clients have reached their target rate! The market rate is now at or below what they wanted.',
-          actionLabel: 'Why this matters',
-          actionText: `This is the HOTTEST opportunity! These clients are ready to refi NOW and could save a combined $${totalSavings}/month. Call them immediately.`,
-          tips: [
-            'Call today - rates can change tomorrow',
-            'Lead with: "Great news! Rates hit your target"',
-            'Mention their specific monthly savings',
-            'Get them pre-approved ASAP to lock the rate'
-          ]
-        }
-      case 'close':
-        return {
-          title: 'Close to Target',
-          icon: TrendingDown,
-          color: 'orange',
-          description: 'These clients are within 0.25% of their target rate. Almost there!',
-          actionLabel: 'Why this matters',
-          actionText: 'They\'re close! A small rate drop or adjusting their target slightly could create an opportunity. Stay proactive.',
-          tips: [
-            'Monitor daily - they could hit target soon',
-            'Ask if they\'d consider 0.125% above target',
-            'Explain break-even point at current rates',
-            'Keep them warm with market updates'
-          ]
-        }
-      case 'stale':
-        return {
-          title: 'Stale Monitoring',
-          icon: Clock,
-          color: 'red',
-          description: 'These clients haven\'t been contacted (manually or by AI) in 60+ days.',
-          actionLabel: 'Why this matters',
-          actionText: 'Out of sight = out of mind. These clients might forget you\'re monitoring for them or assume you\'re not working for them.',
-          tips: [
-            'Send a "We\'re still watching" message',
-            'Share a market update or rate forecast',
-            'Re-confirm their target rate is still accurate',
-            'Ask about any life changes (new job, moving, etc.)'
-          ]
-        }
-      case 'calls':
-        return {
-          title: 'AI Calls This Week',
-          icon: Activity,
-          color: 'blue',
-          description: 'These clients were contacted by the AI calling system in the last 7 days.',
-          actionLabel: 'Why this matters',
-          actionText: 'AI is keeping them engaged! Review call transcripts to see what they said and follow up on any questions.',
-          tips: [
-            'Check call outcomes and transcripts',
-            'Follow up on any questions AI couldn\'t answer',
-            'Add personal touch after AI contact',
-            'Adjust target rates based on feedback'
-          ]
-        }
-      default:
-        return null
+  const colorClasses = {
+    green: 'from-green-500 to-green-600',
+    blue: 'from-blue-500 to-blue-600',
+    purple: 'from-purple-500 to-purple-600',
+    orange: 'from-orange-500 to-orange-600'
+  }
+
+  const DynamicIcon = ({ className }: { className: string }) => {
+    switch (icon) {
+      case 'target': return <Target className={className} />
+      case 'trending': return <TrendingDown className={className} />
+      case 'phone': return <Phone className={className} />
+      case 'calendar': return <Calendar className={className} />
+      default: return null
     }
   }
 
-  const config = getInsightConfig()
-  if (!config) return null
+  const formatCurrency = (amount?: number) => 
+    amount ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount) : 'N/A'
+  const formatDate = (dateString?: string) => 
+    dateString ? new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set'
+  const getRateDifference = (current: number, market: number) => ({
+    value: Math.abs(current - market),
+    isGood: current > market
+  })
 
-  const Icon = config.icon
-
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'green':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-900 dark:text-green-100'
-      case 'orange':
-        return 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-900 dark:text-orange-100'
-      case 'red':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-900 dark:text-red-100'
-      case 'blue':
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-100'
-      default:
-        return 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800 text-gray-900 dark:text-gray-100'
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) onClose()
     }
-  }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'hidden'
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
-  const getDaysSinceContact = (lastContact?: string): string => {
-    if (!lastContact) return 'Never'
-    const lastContactDate = new Date(lastContact)
-    const today = new Date()
-    const diffTime = today.getTime() - lastContactDate.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    return `${diffDays} days ago`
-  }
-
-  const formatSavings = (savings?: number): string => {
-    if (!savings || savings <= 0) return '$0'
-    return `$${savings.toLocaleString()}/mo`
-  }
+  if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className={`p-6 border-b ${getColorClasses(config.color)} border`}>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                config.color === 'green' ? 'bg-green-100 dark:bg-green-900/40' :
-                config.color === 'orange' ? 'bg-orange-100 dark:bg-orange-900/40' :
-                config.color === 'red' ? 'bg-red-100 dark:bg-red-900/40' :
-                'bg-blue-100 dark:bg-blue-900/40'
-              }`}>
-                <Icon className="w-6 h-6" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">{config.title}</h2>
-                <p className="text-sm mt-1 opacity-80">
-                  {mortgages.length} client{mortgages.length !== 1 ? 's' : ''}
-                  {insightType === 'target' && totalSavings > 0 && (
-                    <span className="ml-2 font-semibold">• ${totalSavings.toLocaleString()}/mo total savings</span>
-                  )}
-                </p>
-              </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div ref={modalRef} className="bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        
+        <div className={`bg-gradient-to-r ${colorClasses[color]} p-6 text-white relative`}>
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-all">
+            <X className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+              <DynamicIcon className="w-7 h-7" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div>
+              <h2 className="text-2xl font-bold mb-1">{title}</h2>
+              <p className="text-white/90 text-sm">{description}</p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              <span className="font-semibold">{mortgages.length}</span>
+              <span className="opacity-90">Client{mortgages.length !== 1 ? 's' : ''}</span>
+            </div>
+            {mortgages.length > 0 && (
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                <span className="font-semibold">{formatCurrency(mortgages.reduce((sum, m) => sum + (m.savings_potential || 0), 0))}</span>
+                <span className="opacity-90">Total Potential</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Description */}
-          <div className="space-y-3">
-            <p className="text-gray-700 dark:text-gray-300">
-              {config.description}
-            </p>
-            
-            <div className={`${getColorClasses(config.color)} border rounded-lg p-4`}>
-              <h3 className="font-semibold mb-2">💡 {config.actionLabel}</h3>
-              <p className="text-sm">{config.actionText}</p>
+        <div className="flex-1 overflow-y-auto p-6">
+          {mortgages.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DynamicIcon className="w-10 h-10 text-gray-500" />
+              </div>
+              <p className="text-gray-400 text-lg">No mortgages in this category</p>
             </div>
-          </div>
-
-          {/* Tips */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">📋 Action Tips:</h3>
-            <ul className="space-y-2">
-              {config.tips.map((tip, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="text-blue-600 dark:text-blue-400 mt-1">•</span>
-                  <span>{tip}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Mortgage List */}
-          {mortgages.length > 0 ? (
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Clients in this category:</h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {mortgages.map((mortgage) => (
-                  <div
-                    key={mortgage.id}
-                    className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => {
-                      onViewMortgage?.(mortgage)
-                      onClose()
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">
+          ) : (
+            <div className="space-y-4">
+              {mortgages.map((mortgage) => {
+                const rateDiff = mortgage.market_rate ? getRateDifference(mortgage.current_rate, mortgage.market_rate) : null
+                return (
+                  <div key={mortgage.id} className="bg-gray-800/50 rounded-xl p-5 hover:bg-gray-800 transition-all border border-gray-700">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-gray-100 mb-2">
                           {mortgage.client_name || `${mortgage.first_name} ${mortgage.last_name}`}
-                        </h4>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {mortgage.phone || 'No phone'}
+                        </h3>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="text-sm text-gray-400 font-medium">
+                            {mortgage.lender || 'Unknown Lender'}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" />
-                            ${(mortgage.loan_amount / 1000).toFixed(0)}K
-                          </span>
-                          {mortgage.savings_potential && mortgage.savings_potential > 0 && (
-                            <span className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
-                              💰 {formatSavings(mortgage.savings_potential)} savings
+                          {rateDiff && (
+                            <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                              rateDiff.isGood ? 'bg-green-900/30 text-green-300' : 'bg-gray-800 text-gray-400'
+                            }`}>
+                              {rateDiff.isGood ? `↓ ${rateDiff.value.toFixed(2)}%` : 'At market'}
                             </span>
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                          Target: {mortgage.target_rate}%
+                      {mortgage.savings_potential && mortgage.savings_potential > 0 && (
+                        <div className="text-right bg-green-900/20 rounded-lg p-3 border border-green-800">
+                          <div className="text-3xl font-bold text-green-400">{formatCurrency(mortgage.savings_potential)}</div>
+                          <div className="text-xs text-green-300 font-medium">monthly savings</div>
                         </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {getDaysSinceContact(mortgage.last_contact || mortgage.last_ai_call)}
-                        </div>
-                      </div>
+                      )}
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-300 truncate">{mortgage.email}</span>
+                      </div>
+                      {mortgage.phone && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <PhoneCall className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-300">{mortgage.phone}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm">
+                        <DollarSign className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-300 font-semibold">{formatCurrency(mortgage.loan_amount)}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Percent className="w-4 h-4 text-gray-400" />
+                        <span className="text-gray-300">{mortgage.current_rate.toFixed(2)}% → {mortgage.target_rate.toFixed(2)}%</span>
+                      </div>
+                      {mortgage.market_rate && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <TrendingDown className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-300">Market: {mortgage.market_rate.toFixed(2)}%</span>
+                        </div>
+                      )}
+                      {mortgage.refi_eligible_date && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-300">Eligible: {formatDate(mortgage.refi_eligible_date)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {onViewMortgage && (
+                      <Button onClick={() => onViewMortgage(mortgage)} variant="primary" size="md" className="w-full">
+                        View Full Details
+                      </Button>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No clients in this category!</p>
+                )
+              })}
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-800">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="w-full"
-          >
-            Close
-          </Button>
+        <div className="border-t border-gray-800 p-4 bg-gray-800/50">
+          <Button onClick={onClose} variant="outline">Close</Button>
         </div>
       </div>
     </div>

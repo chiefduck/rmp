@@ -2,6 +2,7 @@
 import React from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardHeader, CardContent, CardTitle } from '../ui/Card'
+import { LOAN_TYPE_LABELS } from '../../utils/constants'
 
 interface RateData {
   loan_type: string
@@ -18,14 +19,6 @@ interface RateComparisonProps {
   rates: RateData[]
   isExpanded: boolean
   onToggle: () => void
-}
-
-const LOAN_TYPE_LABELS: Record<string, string> = {
-  conventional: '30-Year Fixed',
-  '15yr': '15-Year Fixed',
-  fha: 'FHA Loan',
-  va: 'VA Loan',
-  jumbo: 'Jumbo Loan'
 }
 
 const formatChange = (change: number | undefined) => {

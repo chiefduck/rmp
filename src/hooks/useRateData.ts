@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { RateService } from '../lib/rateService'
 import { supabase } from '../lib/supabase'
 import { useToast } from '../contexts/ToastContext'
+import { calculateMonthlySavings } from '../utils/calculations'
+import { REFRESH_INTERVALS } from '../utils/constants'
 
 export interface RateDisplayData {
   loan_type: string
@@ -57,6 +59,7 @@ export const useRateData = (userId: string | undefined) => {
   const [mortgages, setMortgages] = useState<MortgageData[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [dataLastUpdated, setDataLastUpdated] = useState<string>('')
 
@@ -78,8 +81,8 @@ export const useRateData = (userId: string | undefined) => {
       })
       .subscribe()
 
-    // Auto-refresh every 15 minutes
-    const interval = setInterval(fetchAll, 15 * 60 * 1000)
+    // Auto-refresh using constant
+    const interval = setInterval(fetchAll, REFRESH_INTERVALS.RATES)
 
     // Refresh on focus
     const handleFocus = () => fetchAll()
@@ -99,6 +102,7 @@ export const useRateData = (userId: string | undefined) => {
       fetchAlerts()
     ])
     setLastRefresh(new Date())
+    setInitialLoading(false)
   }
 
   const fetchRates = async () => {
@@ -203,13 +207,7 @@ export const useRateData = (userId: string | undefined) => {
     marketRate: number, 
     loanAmount: number
   ): number => {
-    if (currentRate <= marketRate) return 0
-    const months = 360
-    const calcPayment = (rate: number) => {
-      const r = rate / 100 / 12
-      return loanAmount * (r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1)
-    }
-    return Math.round(calcPayment(currentRate) - calcPayment(marketRate))
+    return calculateMonthlySavings(loanAmount, currentRate, marketRate, 30)
   }
 
   const fetchAlerts = async () => {
@@ -261,6 +259,7 @@ export const useRateData = (userId: string | undefined) => {
     mortgages,
     alerts,
     loading,
+    initialLoading,
     lastRefresh,
     dataLastUpdated,
     fetchAll,

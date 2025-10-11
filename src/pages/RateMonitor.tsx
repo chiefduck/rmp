@@ -2,6 +2,7 @@
 import React, { useState } from 'react'
 import { RefreshCw, Activity, Clock, Plus } from 'lucide-react'
 import { Button } from '../components/ui/Button'
+import { RateCardsGridSkeleton, ClientCardsGridSkeleton } from '../components/ui/Skeletons'
 import HistoricalRateChart from '../components/RateMonitor/HistoricalRateChart'
 import { MonitoringOverview } from '../components/RateMonitor/MonitoringOverview'
 import { AddMonitoringClientModal } from '../components/RateMonitor/AddMonitoringClientModal'
@@ -16,6 +17,8 @@ import { useRateData, MortgageData, RateDisplayData } from '../hooks/useRateData
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
+import { formatDateTime } from '../utils/formatters'
+import { SUCCESS_MESSAGES } from '../utils/constants'
 
 export const RateMonitor: React.FC = () => {
   const { user } = useAuth()
@@ -27,6 +30,7 @@ export const RateMonitor: React.FC = () => {
     mortgages,
     alerts,
     loading,
+    initialLoading,
     lastRefresh,
     dataLastUpdated,
     fetchAll,
@@ -52,7 +56,7 @@ export const RateMonitor: React.FC = () => {
       const { error } = await supabase.from('mortgages').delete().eq('id', mortgage.id)
       if (error) throw error
       
-      info('Mortgage deleted successfully')
+      info(SUCCESS_MESSAGES.MORTGAGE_DELETED)
       fetchAll()
       
       if (selectedMortgage?.id === mortgage.id) {
@@ -66,10 +70,25 @@ export const RateMonitor: React.FC = () => {
     }
   }
 
-  const formatDateTime = (date: Date) => date.toLocaleString('en-US', { 
-    month: 'short', day: 'numeric', year: 'numeric', 
-    hour: 'numeric', minute: '2-digit', hour12: true 
-  })
+  // Show initial loading state
+  if (initialLoading) {
+    return (
+      <div className="space-y-4 md:space-y-6 overflow-x-hidden pb-20 md:pb-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Rate Monitor
+            </h1>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <div className="h-12 w-64 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+        </div>
+        <RateCardsGridSkeleton />
+        <ClientCardsGridSkeleton count={3} />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4 md:space-y-6 overflow-x-hidden pb-20 md:pb-6">
@@ -117,14 +136,15 @@ export const RateMonitor: React.FC = () => {
       {/* Rate Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {rates.map(rate => (
-          <RateCard 
+          <div 
             key={rate.loan_type}
-            rate={rate}
             onClick={() => {
               setSelectedRate(rate)
               setShowRateDetailModal(true)
             }}
-          />
+          >
+            <RateCard rate={rate} />
+          </div>
         ))}
       </div>
 
