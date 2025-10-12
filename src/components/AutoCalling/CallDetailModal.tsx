@@ -1,8 +1,8 @@
-// src/components/AutoCalling/CallDetailModal.tsx
+// src/components/AutoCalling/CallDetailModal.tsx - NO COST DISPLAY
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { Phone, Clock, DollarSign, CheckCircle, XCircle, Download, Play, Pause, User, MessageSquare, Sparkles } from 'lucide-react'
+import { Phone, Clock, CheckCircle, XCircle, Download, Play, Pause, User, MessageSquare, Sparkles, Zap } from 'lucide-react'
 import { CallLogEntry } from '../../lib/blandService'
 import BlandService from '../../lib/blandService'
 
@@ -42,17 +42,20 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
     
     setLoading(true)
     try {
-      // Load transcript if not already loaded
-      if (!call.transcript && call.bland_call_id) {
+      // Use transcript from database first (webhook already populated it)
+      if (call.transcript) {
+        setFullTranscript(call.transcript)
+      } else if (call.bland_call_id) {
+        // Only fetch from API if not in database
         try {
           const transcript = await BlandService.getTranscript(call.bland_call_id)
           setFullTranscript(transcript)
         } catch (error) {
           console.error('Failed to load transcript:', error)
-          setFullTranscript(call.transcript || 'Transcript not available')
+          setFullTranscript('Transcript not available yet')
         }
       } else {
-        setFullTranscript(call.transcript || 'Transcript not available')
+        setFullTranscript('Transcript not available yet')
       }
 
       // Load recording URL
@@ -115,10 +118,6 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const formatCost = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`
-  }
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
@@ -178,7 +177,7 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
                 <p className="text-blue-600 dark:text-blue-300">
                   {call.phone_number}
                 </p>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(call.call_status)}`}>
                     {call.call_status.replace('-', ' ').toUpperCase()}
                   </span>
@@ -209,7 +208,7 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Call Metrics */}
+        {/* Call Metrics - NO COST */}
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -223,21 +222,21 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
 
           <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Cost</span>
-            </div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formatCost(call.cost_cents || 0)}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
               <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               <span className="text-sm text-gray-600 dark:text-gray-400">Type</span>
             </div>
             <div className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">
               {call.call_type}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm text-gray-600 dark:text-gray-400">Credit</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              1
             </div>
           </div>
         </div>
@@ -274,7 +273,7 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
           </div>
         )}
 
-        {/* Transcript */}
+        {/* Transcript - Simple Version */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
@@ -286,7 +285,7 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
               <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <p className="mt-2 text-gray-600 dark:text-gray-400">Loading transcript...</p>
             </div>
-          ) : fullTranscript ? (
+          ) : fullTranscript && fullTranscript !== 'Transcript not available yet' ? (
             <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
               <div className="prose dark:prose-invert max-w-none">
                 <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">

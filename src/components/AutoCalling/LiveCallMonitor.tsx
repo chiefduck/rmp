@@ -1,11 +1,12 @@
 // src/components/AutoCalling/LiveCallMonitor.tsx - Real-time call monitoring
 import React, { useState, useEffect } from 'react';
-import { Phone, Clock, User, PhoneOff, AlertCircle } from 'lucide-react';
+import { Phone, Clock, PhoneOff, AlertCircle } from 'lucide-react';
 import { PulsingDot } from '../ui/Skeletons';
 import BlandService from '../../lib/blandService';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { supabase } from '../../lib/supabase';
 
 interface ActiveCall {
   id: string;
@@ -44,18 +45,19 @@ export const LiveCallMonitor: React.FC = () => {
         limit: 10
       });
       
-      // Filter for genuinely active calls (created recently AND have active status)
+      // Filter for genuinely active calls
       const now = new Date().getTime();
       const activeCalls: ActiveCall[] = logs
         .filter(log => {
-          // Only show if status is truly active
+          // Only show if status is truly active AND call is recent
           const isActiveStatus = ['initiated', 'ringing', 'in-progress'].includes(log.call_status);
-          
-          // AND call was created within last 5 minutes
           const callAge = now - new Date(log.created_at).getTime();
-          const isRecent = callAge < 5 * 60 * 1000; // 5 minutes in milliseconds
+          const isRecent = callAge < 5 * 60 * 1000;
           
-          return isActiveStatus && isRecent;
+          // ALSO exclude if completed_at is set (webhook fired)
+          const notCompleted = !log.completed_at;
+          
+          return isActiveStatus && isRecent && notCompleted;
         })
         .map(log => ({
           id: log.id,
@@ -84,13 +86,12 @@ export const LiveCallMonitor: React.FC = () => {
     );
     
     if (!confirmed) {
-      return; // User cancelled
+      return;
     }
 
-    setStoppingCallId(callId); // Show loading state
+    setStoppingCallId(callId);
 
     try {
-      // Find the call in our list
       const call = activeCalls.find(c => c.id === callId);
       if (!call) {
         showError('Call not found');
@@ -107,9 +108,20 @@ export const LiveCallMonitor: React.FC = () => {
       const callLog = logs.find(l => l.id === callId);
       
       if (!callLog?.bland_call_id) {
-        // No call ID - just remove from list
-        setActiveCalls(prev => prev.filter(c => c.id !== callId));
-        success('Call removed from active list');
+        // No Bland call ID - call never actually started
+        // Just mark as failed in database
+        const { error: updateError } = await supabase
+          .from('call_logs')
+          .update({
+            call_status: 'failed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', callId)
+        
+        if (!updateError) {
+          setActiveCalls(prev => prev.filter(c => c.id !== callId));
+          success('Call cancelled - never connected');
+        }
         setStoppingCallId(null);
         return;
       }
@@ -129,11 +141,9 @@ export const LiveCallMonitor: React.FC = () => {
         setActiveCalls(prev => prev.filter(c => c.id !== callId));
         success('Call already ended');
       } else if (error.message?.includes('401')) {
-        // Auth error - remove from list but warn
         setActiveCalls(prev => prev.filter(c => c.id !== callId));
         showError('⚠️ Unable to verify call status - please refresh');
       } else {
-        // Real error - keep in list and show error
         showError('❌ Failed to stop call - please try again');
       }
     } finally {
@@ -188,7 +198,6 @@ export const LiveCallMonitor: React.FC = () => {
             className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 flex items-center justify-between"
           >
             <div className="flex items-center gap-3 flex-1">
-              {/* Status Icon */}
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                 call.status === 'ringing' 
                   ? 'bg-yellow-100 dark:bg-yellow-900/20' 
@@ -201,7 +210,6 @@ export const LiveCallMonitor: React.FC = () => {
                 }`} />
               </div>
 
-              {/* Call Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h4 className="font-semibold text-gray-900 dark:text-gray-100">
@@ -238,7 +246,6 @@ export const LiveCallMonitor: React.FC = () => {
               </div>
             </div>
 
-            {/* Stop Button */}
             <Button
               onClick={() => handleStopCall(call.id)}
               variant="outline"
@@ -262,7 +269,6 @@ export const LiveCallMonitor: React.FC = () => {
         ))}
       </div>
 
-      {/* Info Box */}
       <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
         <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-800 dark:text-blue-200">

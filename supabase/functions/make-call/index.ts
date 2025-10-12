@@ -19,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { clientId, userId, callType = 'both' }: CallRequest = await req.json()
+    const { clientId, userId, callType = 'client-only' }: CallRequest = await req.json()
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -104,31 +104,45 @@ serve(async (req) => {
         const brokerCallResponse = await fetch('https://api.bland.ai/v1/calls', {
           method: 'POST',
           headers: {
-            'Authorization': BLAND_API_KEY,
+            'authorization': BLAND_API_KEY, // Send API key exactly as stored
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             phone_number: profile.broker_phone_number,
-            task: `You are calling ${profile.full_name || 'a mortgage broker'}. 
-                   This is an urgent opportunity alert. 
-                   
-                   Their client ${client.first_name} ${client.last_name} has just hit their target rate. 
-                   
-                   Details:
-                   - Loan type: ${client.loan_type || '30-year fixed'}
-                   - Current market rate: ${currentRate}%
-                   - Client's target rate: ${client.target_rate}%
-                   - Potential monthly savings: $${monthlySavings}
-                   - Annual savings: $${monthlySavings * 12}
-                   
-                   Tell them their automated system will call the client in 2 minutes, 
-                   or they can reach out personally first if they prefer.
-                   
-                   Keep this call brief and professional - under 1 minute. 
-                   The goal is to alert them to the opportunity so they can act quickly.`,
+            
+            // 🎯 CONVERSATIONAL AI SETTINGS
+            wait_for_greeting: true,
+            interruption_threshold: 300, // ⬆️ Much higher = less sensitive (default 100, max 500)
+            temperature: 0.7,
+            language: 'eng',
+            background_track: 'none', // Reduce background noise pickup
+            
+            task: `You are an AI assistant calling ${profile.full_name || 'a mortgage broker'} with an urgent opportunity alert.
+
+CRITICAL RULES:
+1. When they answer, WAIT for them to say "hello" or greet you
+2. Do NOT say goodbye unless they want to end the call
+3. This is a CONVERSATION - listen and respond naturally
+4. If they seem confused or don't respond, introduce yourself again
+
+When they greet you, say:
+
+"Hi! This is your automated rate alert system calling. I have great news about one of your clients - ${client.first_name} ${client.last_name} has just hit their target mortgage rate!"
+
+Then explain:
+- Loan type: ${client.loan_type || '30-year fixed'}
+- Current market rate: ${currentRate}%
+- Client's target rate: ${client.target_rate}%
+- Monthly savings: ${monthlySavings}
+- Annual savings: ${monthlySavings * 12}
+
+Tell them: "Your automated system will call ${client.first_name} in 2 minutes to let them know. Would you prefer to reach out personally instead?"
+
+Keep it professional and helpful. If they have questions, answer them. Don't rush off the call - this is important information for them!`,
+            
             voice: 'maya',
-            max_duration: 1.5,
-            webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/call-webhook`,
+            max_duration: 3,
+            webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
             metadata: {
               call_type: 'broker',
               user_id: userId,
@@ -138,7 +152,9 @@ serve(async (req) => {
         })
 
         if (!brokerCallResponse.ok) {
-          throw new Error(`Bland API error: ${brokerCallResponse.status}`)
+          const errorText = await brokerCallResponse.text()
+          console.error('Bland API error:', errorText)
+          throw new Error(`Bland API error: ${brokerCallResponse.status} - ${errorText}`)
         }
 
         const brokerCallData = await brokerCallResponse.json()
@@ -152,7 +168,7 @@ serve(async (req) => {
           bland_call_id: brokerCallData.call_id,
           phone_number: profile.broker_phone_number,
           call_status: 'initiated',
-          cost_cents: 9 // Estimated ~$0.09 per minute
+          cost_cents: 0 // Will be updated by webhook
         })
 
         // Wait 2 minutes before calling client (gives broker time to see alert)
@@ -177,28 +193,52 @@ serve(async (req) => {
         const clientCallResponse = await fetch('https://api.bland.ai/v1/calls', {
           method: 'POST',
           headers: {
-            'Authorization': BLAND_API_KEY,
+            'authorization': BLAND_API_KEY, // Send API key exactly as stored
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             phone_number: client.phone,
-            task: `You are calling ${client.first_name} ${client.last_name} on behalf of their mortgage advisor ${profile.full_name || profile.company || 'from their mortgage office'}.
-                   
-                   This is great news! You're calling to inform them that ${client.loan_type || '30-year fixed'} mortgage rates 
-                   have dropped to ${currentRate}%, which is at or below their target rate of ${client.target_rate}%.
-                   
-                   By refinancing now, they could save approximately $${monthlySavings} per month, 
-                   which is $${monthlySavings * 12} per year.
-                   
-                   Ask if they would like their mortgage advisor to reach out to discuss their refinancing options 
-                   and get the process started.
-                   
-                   Be friendly, professional, and enthusiastic about this opportunity. 
-                   Keep the call under 2 minutes. If they're interested, let them know their advisor will 
-                   contact them within 24 hours to discuss next steps.`,
+            
+            // 🎯 CONVERSATIONAL AI SETTINGS
+            wait_for_greeting: true,
+            interruption_threshold: 300, // ⬆️ Much higher = less sensitive (default 100, max 500)
+            temperature: 0.7,
+            language: 'eng',
+            background_track: 'none', // Reduce background noise pickup
+            
+            task: `You are a friendly AI assistant calling ${client.first_name} ${client.last_name} on behalf of their mortgage advisor ${profile.full_name || profile.company || 'from their mortgage office'}.
+
+CRITICAL: This is a natural, two-way conversation. You MUST listen to what they say and respond accordingly. Let them speak, ask questions, and interrupt you. This is NOT a monologue!
+
+When they answer the phone, wait for them to say "hello" or greet you, then say:
+
+"Hi ${client.first_name}! This is the automated assistant from ${profile.full_name || 'your mortgage advisor'}'s office. I'm calling with some really great news about mortgage rates - do you have a quick minute?"
+
+Wait for their response. If they say yes, continue naturally:
+
+"Excellent! So here's the exciting part - ${client.loan_type || '30-year fixed'} mortgage rates have dropped to ${currentRate}%, which is right at your target rate of ${client.target_rate}%!"
+
+Pause and let them respond. Then share the savings:
+
+"By refinancing now, you could save approximately $${monthlySavings} per month. That's $${monthlySavings * 12} every year back in your pocket!"
+
+Then ask: "Would you like ${profile.full_name || 'your mortgage advisor'} to reach out to discuss your refinancing options and help you get started?"
+
+IMPORTANT RULES:
+- Listen actively and respond to what they say
+- If they ask questions, answer them naturally
+- If they're busy, offer to call back later
+- If they're interested, confirm their advisor will call within 24 hours
+- If they're not interested, thank them politely and end the call
+- Keep it conversational and warm, not scripted or robotic
+- Aim for 2-3 minutes, but let the conversation flow naturally
+- Let them interrupt you - it's a sign they're engaged!
+
+Remember: You're having a CONVERSATION, not delivering a speech!`,
+            
             voice: 'maya',
-            max_duration: 3,
-            webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/call-webhook`,
+            max_duration: 5,
+            webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
             metadata: {
               call_type: 'client',
               user_id: userId,
@@ -208,7 +248,9 @@ serve(async (req) => {
         })
 
         if (!clientCallResponse.ok) {
-          throw new Error(`Bland API error: ${clientCallResponse.status}`)
+          const errorText = await clientCallResponse.text()
+          console.error('Bland API error:', errorText)
+          throw new Error(`Bland API error: ${clientCallResponse.status} - ${errorText}`)
         }
 
         const clientCallData = await clientCallResponse.json()
@@ -222,7 +264,7 @@ serve(async (req) => {
           bland_call_id: clientCallData.call_id,
           phone_number: client.phone,
           call_status: 'initiated',
-          cost_cents: 18 // Estimated ~$0.18 for 2 minutes
+          cost_cents: 0 // Will be updated by webhook
         })
 
         // Update client record

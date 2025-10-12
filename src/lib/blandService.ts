@@ -1,4 +1,4 @@
-// src/lib/blandService.ts - Bland AI API Wrapper
+// src/lib/blandService.ts - SECURE VERSION (No Direct API Calls)
 import { supabase } from './supabase'
 
 export interface BlandCall {
@@ -35,185 +35,98 @@ export interface CallLogEntry {
 }
 
 export class BlandService {
-  private static BLAND_API_URL = 'https://api.bland.ai/v1'
-  
   /**
-   * Get Bland API key from user profile or environment
+   * Get call recording URL - SECURE VERSION
    */
-  private static async getApiKey(): Promise<string> {
-    // Try environment variable first
-    const envKey = import.meta.env.VITE_BLAND_API_KEY
-    if (envKey) return envKey
+  static async getRecording(callId: string): Promise<string> {
+    console.log('🎵 Fetching recording via Edge Function')
     
-    // Otherwise get from Supabase secrets (if stored per user)
-    const { data } = await supabase.auth.getUser()
-    if (!data.user) throw new Error('Not authenticated')
+    const { data, error } = await supabase.functions.invoke('get-call-details', {
+      body: { callId, type: 'recording' }
+    })
     
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('bland_api_key')
-      .eq('id', data.user.id)
-      .single()
-    
-    if (!profile?.bland_api_key) {
-      throw new Error('Bland API key not configured')
+    if (error) {
+      console.error('Recording error:', error)
+      throw new Error('Recording not available')
     }
     
-    return profile.bland_api_key
+    if (!data.success || !data.data) {
+      throw new Error('Recording not found')
+    }
+    
+    return data.data.recording_url || data.data.url
   }
 
   /**
-   * List all calls with optional filters
-   */
-  static async listCalls(params?: {
-    limit?: number
-    offset?: number
-    status?: string
-  }): Promise<BlandCall[]> {
-    const apiKey = await this.getApiKey()
-    const queryParams = new URLSearchParams()
-    
-    if (params?.limit) queryParams.append('limit', params.limit.toString())
-    if (params?.offset) queryParams.append('offset', params.offset.toString())
-    if (params?.status) queryParams.append('status', params.status)
-    
-    const response = await fetch(
-      `${this.BLAND_API_URL}/calls?${queryParams}`,
-      {
-        headers: {
-          'Authorization': apiKey
-        }
-      }
-    )
-    
-    if (!response.ok) {
-      throw new Error(`Bland API error: ${response.status}`)
-    }
-    
-    const data = await response.json()
-    return data.calls || []
-  }
-
-  /**
-   * Get details for a specific call
-   */
-  static async getCallDetails(callId: string): Promise<BlandCall> {
-    const apiKey = await this.getApiKey()
-    
-    const response = await fetch(
-      `${this.BLAND_API_URL}/calls/${callId}`,
-      {
-        headers: {
-          'Authorization': apiKey
-        }
-      }
-    )
-    
-    if (!response.ok) {
-      throw new Error(`Bland API error: ${response.status}`)
-    }
-    
-    return await response.json()
-  }
-
-  /**
-   * Get call recording URL or stream
-   */
-  static async getRecording(callId: string, format: 'mp3' | 'wav' = 'mp3'): Promise<string> {
-    const apiKey = await this.getApiKey()
-    
-    const response = await fetch(
-      `${this.BLAND_API_URL}/recordings/${callId}`,
-      {
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': format === 'mp3' ? 'audio/mpeg' : 'audio/wav'
-        }
-      }
-    )
-    
-    if (!response.ok) {
-      throw new Error(`Recording not found: ${response.status}`)
-    }
-    
-    // Return the URL or blob
-    return response.url
-  }
-
-  /**
-   * Get corrected transcript for a call
+   * Get corrected transcript - SECURE VERSION
    */
   static async getTranscript(callId: string): Promise<string> {
-    const apiKey = await this.getApiKey()
+    console.log('📝 Fetching transcript via Edge Function')
     
-    const response = await fetch(
-      `${this.BLAND_API_URL}/calls/${callId}/corrected-transcript`,
-      {
-        headers: {
-          'Authorization': apiKey
-        }
-      }
-    )
+    const { data, error } = await supabase.functions.invoke('get-call-details', {
+      body: { callId, type: 'transcript' }
+    })
     
-    if (!response.ok) {
-      throw new Error(`Transcript not found: ${response.status}`)
+    if (error) {
+      console.error('Transcript error:', error)
+      throw new Error('Transcript not available')
     }
     
-    const data = await response.json()
-    return data.transcript || ''
+    if (!data.success || !data.data) {
+      throw new Error('Transcript not found')
+    }
+    
+    return data.data.transcript || ''
   }
 
   /**
-   * Analyze call emotions
+   * Analyze call emotions - SECURE VERSION
    */
   static async analyzeEmotions(callId: string): Promise<{
     emotion: string
     confidence?: number
   }> {
-    const apiKey = await this.getApiKey()
+    console.log('😊 Analyzing emotions via Edge Function')
     
-    const response = await fetch(
-      `${this.BLAND_API_URL}/intelligence/emotions`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ callId })
-      }
-    )
+    const { data, error } = await supabase.functions.invoke('get-call-details', {
+      body: { callId, type: 'emotions' }
+    })
     
-    if (!response.ok) {
-      throw new Error(`Emotion analysis failed: ${response.status}`)
+    if (error) {
+      console.error('Emotion analysis error:', error)
+      return { emotion: 'neutral' }
     }
     
-    const data = await response.json()
+    if (!data.success || !data.data) {
+      return { emotion: 'neutral' }
+    }
+    
     return {
-      emotion: data.data?.emotion || 'neutral',
-      confidence: data.data?.confidence
+      emotion: data.data.data?.emotion || 'neutral',
+      confidence: data.data.data?.confidence
     }
   }
 
   /**
-   * Stop an active call
+   * Stop an active call - SECURE VERSION
    */
   static async stopCall(callId: string): Promise<void> {
-    const apiKey = await this.getApiKey()
+    console.log(`🛑 Stopping call via Edge Function: ${callId}`)
     
-    const response = await fetch(
-      `${this.BLAND_API_URL}/calls/${callId}`,
-      {
-        method: 'DELETE',
-        headers: {
-          'Authorization': apiKey
-        }
-      }
-    )
+    const { data, error } = await supabase.functions.invoke('stop-call', {
+      body: { callId }
+    })
     
-    if (!response.ok) {
-      throw new Error(`Failed to stop call: ${response.status}`)
+    if (error) {
+      console.error('Stop call error:', error)
+      throw new Error('Failed to stop call')
     }
+    
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to stop call')
+    }
+    
+    console.log('✅ Call stopped successfully')
   }
 
   /**
@@ -332,7 +245,7 @@ export class BlandService {
       failedCalls,
       totalDuration,
       totalCost,
-      averageDuration: totalCalls > 0 ? totalDuration / totalCalls : 0,
+      averageDuration: successfulCalls > 0 ? totalDuration / successfulCalls : 0,
       successRate: totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0
     }
   }

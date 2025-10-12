@@ -1,6 +1,6 @@
-// src/pages/AutoCalling.tsx - AI CALLING CONTROL CENTER
+// src/pages/AutoCalling.tsx - AI CALLING CONTROL CENTER (NO COST DISPLAY)
 import React, { useState, useEffect } from 'react'
-import { Phone, TrendingUp, Clock, DollarSign, CheckCircle, XCircle, RefreshCw, Search, Plus, BarChart3, List } from 'lucide-react'
+import { Phone, TrendingUp, Clock, Zap, CheckCircle, XCircle, RefreshCw, Search, Plus, BarChart3, List } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { CallDetailModal } from '../components/AutoCalling/CallDetailModal'
 import { ManualCallTrigger } from '../components/AutoCalling/ManualCallTrigger'
@@ -15,6 +15,8 @@ import { useToast } from '../contexts/ToastContext'
 import BlandService, { CallLogEntry } from '../lib/blandService'
 import { DashboardLoadingSkeleton, EmptyState } from '../components/ui/Skeletons'
 import { CallAnalyticsCharts } from '../components/AutoCalling/CallAnalyticsCharts'
+
+// Import LiveCallMonitor separately
 import { LiveCallMonitor } from '../components/AutoCalling/LiveCallMonitor'
 
 export const AutoCalling: React.FC = () => {
@@ -49,7 +51,7 @@ export const AutoCalling: React.FC = () => {
   const [showTotalCallsModal, setShowTotalCallsModal] = useState(false)
   const [showSuccessRateModal, setShowSuccessRateModal] = useState(false)
   const [showAvgDurationModal, setShowAvgDurationModal] = useState(false)
-  const [showTotalCostModal, setShowTotalCostModal] = useState(false)
+  const [showCreditsModal, setShowCreditsModal] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -108,10 +110,6 @@ export const AutoCalling: React.FC = () => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
     return `${mins}m ${secs}s`
-  }
-
-  const formatCost = (cents: number) => {
-    return `$${(cents / 100).toFixed(2)}`
   }
 
   const getStatusColor = (status: string) => {
@@ -213,8 +211,9 @@ export const AutoCalling: React.FC = () => {
         {/* Live Call Monitor */}
         <LiveCallMonitor />
 
-        {/* Stats Cards - CLICKABLE */}
+        {/* Stats Cards - CLICKABLE - NO COST */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Total Calls */}
           <button
             onClick={() => setShowTotalCallsModal(true)}
             className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-left group"
@@ -225,22 +224,24 @@ export const AutoCalling: React.FC = () => {
             </div>
             <div className="text-2xl font-bold mb-1">{stats.totalCalls}</div>
             <div className="text-sm opacity-90">Total Calls</div>
-            <div className="text-xs opacity-70 mt-1">Click for details</div>
+            <div className="text-xs opacity-70 mt-1">Click for details →</div>
           </button>
 
+          {/* Success Rate */}
           <button
             onClick={() => setShowSuccessRateModal(true)}
             className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-left group"
           >
             <div className="flex items-center justify-between mb-2">
               <CheckCircle className="w-8 h-8 opacity-80" />
-              <div className="text-sm opacity-90">30 days</div>
+              <div className="text-sm opacity-90">Last 30d</div>
             </div>
             <div className="text-2xl font-bold mb-1">{stats.successRate.toFixed(1)}%</div>
             <div className="text-sm opacity-90">Success Rate</div>
-            <div className="text-xs opacity-70 mt-1">Click for details</div>
+            <div className="text-xs opacity-70 mt-1">Click for details →</div>
           </button>
 
+          {/* Average Duration */}
           <button
             onClick={() => setShowAvgDurationModal(true)}
             className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-left group"
@@ -251,20 +252,21 @@ export const AutoCalling: React.FC = () => {
             </div>
             <div className="text-2xl font-bold mb-1">{formatDuration(Math.round(stats.averageDuration))}</div>
             <div className="text-sm opacity-90">Avg Duration</div>
-            <div className="text-xs opacity-70 mt-1">Click for details</div>
+            <div className="text-xs opacity-70 mt-1">Click for details →</div>
           </button>
 
+          {/* Credits Used - NO DOLLAR SIGNS */}
           <button
-            onClick={() => setShowTotalCostModal(true)}
+            onClick={() => setShowCreditsModal(true)}
             className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-left group"
           >
             <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-8 h-8 opacity-80" />
-              <div className="text-xs opacity-90">Credits Used</div>
+              <Zap className="w-8 h-8 opacity-80" />
+              <div className="text-xs opacity-90">Last 30d</div>
             </div>
             <div className="text-2xl font-bold mb-1">{stats.totalCalls}</div>
-            <div className="text-sm opacity-90">Call Credits</div>
-            <div className="text-xs opacity-70 mt-1">Click for details</div>
+            <div className="text-sm opacity-90">Credits Used</div>
+            <div className="text-xs opacity-70 mt-1">Click for details →</div>
           </button>
         </div>
 
@@ -356,7 +358,7 @@ export const AutoCalling: React.FC = () => {
               )}
             </div>
 
-            {/* Call Activity Feed */}
+            {/* Call Activity Feed - NO COST DISPLAY */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -397,7 +399,7 @@ export const AutoCalling: React.FC = () => {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                                 {log.client_name}
                               </h3>
@@ -432,7 +434,7 @@ export const AutoCalling: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="text-xs text-gray-500 dark:text-gray-500 ml-4">
+                        <div className="text-xs text-gray-500 dark:text-gray-500 ml-4 whitespace-nowrap">
                           {formatDate(log.created_at)}
                         </div>
                       </div>
@@ -485,9 +487,10 @@ export const AutoCalling: React.FC = () => {
           avgDuration={stats.averageDuration}
         />
 
+        {/* Changed from TotalCostModal to Credits display */}
         <TotalCostModal
-          isOpen={showTotalCostModal}
-          onClose={() => setShowTotalCostModal(false)}
+          isOpen={showCreditsModal}
+          onClose={() => setShowCreditsModal(false)}
           calls={callLogs}
           totalCost={stats.totalCost}
         />
