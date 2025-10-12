@@ -104,41 +104,47 @@ serve(async (req) => {
         const brokerCallResponse = await fetch('https://api.bland.ai/v1/calls', {
           method: 'POST',
           headers: {
-            'authorization': BLAND_API_KEY, // Send API key exactly as stored
+            'authorization': BLAND_API_KEY,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             phone_number: profile.broker_phone_number,
             
-            // 🎯 CONVERSATIONAL AI SETTINGS
+            // 🎯 CONVERSATIONAL AI SETTINGS - IMPROVED THRESHOLD
             wait_for_greeting: true,
-            interruption_threshold: 300, // ⬆️ Much higher = less sensitive (default 100, max 500)
+            interruption_threshold: 400, // ⬆️ Increased from 300 to 400 (less sensitive to background noise)
             temperature: 0.7,
             language: 'eng',
-            background_track: 'none', // Reduce background noise pickup
+            background_track: 'none',
             
-            task: `You are an AI assistant calling ${profile.full_name || 'a mortgage broker'} with an urgent opportunity alert.
+            // 📞 BROKER SCRIPT - PROFESSIONAL & TO-THE-POINT
+            task: `You are calling ${profile.full_name || 'a mortgage broker'} with a time-sensitive client opportunity.
 
-CRITICAL RULES:
-1. When they answer, WAIT for them to say "hello" or greet you
-2. Do NOT say goodbye unless they want to end the call
-3. This is a CONVERSATION - listen and respond naturally
-4. If they seem confused or don't respond, introduce yourself again
+RULES:
+- Wait for them to answer and greet you first
+- Be brief and professional - they're busy
+- Get straight to the point
+- Answer questions if asked, but keep it concise
 
+SCRIPT:
 When they greet you, say:
 
-"Hi! This is your automated rate alert system calling. I have great news about one of your clients - ${client.first_name} ${client.last_name} has just hit their target mortgage rate!"
+"Hi, this is your rate alert system. Quick update - ${client.first_name} ${client.last_name} just hit their target rate."
 
-Then explain:
-- Loan type: ${client.loan_type || '30-year fixed'}
-- Current market rate: ${currentRate}%
-- Client's target rate: ${client.target_rate}%
-- Monthly savings: ${monthlySavings}
-- Annual savings: ${monthlySavings * 12}
+Pause briefly, then deliver the key info:
 
-Tell them: "Your automated system will call ${client.first_name} in 2 minutes to let them know. Would you prefer to reach out personally instead?"
+"${client.loan_type || 'Conventional 30-year'} at ${currentRate}%, target was ${client.target_rate}%. Monthly savings: $${monthlySavings}."
 
-Keep it professional and helpful. If they have questions, answer them. Don't rush off the call - this is important information for them!`,
+Then ask:
+
+"Your system will call ${client.first_name} in 2 minutes. Want to reach out personally instead?"
+
+Wait for their response:
+- If YES: "Perfect, I'll cancel the automated call. Good luck!"
+- If NO: "Got it, the call will go out in 2 minutes."
+- If they have questions: Answer briefly and professionally
+
+Keep it under 90 seconds. They're busy, so respect their time.`,
             
             voice: 'maya',
             max_duration: 3,
@@ -168,10 +174,10 @@ Keep it professional and helpful. If they have questions, answer them. Don't rus
           bland_call_id: brokerCallData.call_id,
           phone_number: profile.broker_phone_number,
           call_status: 'initiated',
-          cost_cents: 0 // Will be updated by webhook
+          cost_cents: 0
         })
 
-        // Wait 2 minutes before calling client (gives broker time to see alert)
+        // Wait 2 minutes before calling client
         if (callType === 'both') {
           await new Promise(resolve => setTimeout(resolve, 120000))
         }
@@ -179,7 +185,6 @@ Keep it professional and helpful. If they have questions, answer them. Don't rus
       } catch (brokerError) {
         console.error('Error calling broker:', brokerError)
         results.error = `Broker call failed: ${brokerError.message}`
-        // Continue to client call even if broker call fails
       }
     }
 
@@ -193,48 +198,72 @@ Keep it professional and helpful. If they have questions, answer them. Don't rus
         const clientCallResponse = await fetch('https://api.bland.ai/v1/calls', {
           method: 'POST',
           headers: {
-            'authorization': BLAND_API_KEY, // Send API key exactly as stored
+            'authorization': BLAND_API_KEY,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             phone_number: client.phone,
             
-            // 🎯 CONVERSATIONAL AI SETTINGS
+            // 🎯 CONVERSATIONAL AI SETTINGS - IMPROVED THRESHOLD
             wait_for_greeting: true,
-            interruption_threshold: 300, // ⬆️ Much higher = less sensitive (default 100, max 500)
+            interruption_threshold: 400, // ⬆️ Increased from 300 to 400 (less sensitive to background noise)
             temperature: 0.7,
             language: 'eng',
-            background_track: 'none', // Reduce background noise pickup
+            background_track: 'none',
             
-            task: `You are a friendly AI assistant calling ${client.first_name} ${client.last_name} on behalf of their mortgage advisor ${profile.full_name || profile.company || 'from their mortgage office'}.
+            // 💬 CLIENT SCRIPT - WARM, NATURAL & CONVERSATIONAL
+            task: `You are a friendly assistant calling ${client.first_name} ${client.last_name} on behalf of their mortgage advisor ${profile.full_name || profile.company || 'their mortgage office'}.
 
-CRITICAL: This is a natural, two-way conversation. You MUST listen to what they say and respond accordingly. Let them speak, ask questions, and interrupt you. This is NOT a monologue!
-
-When they answer the phone, wait for them to say "hello" or greet you, then say:
-
-"Hi ${client.first_name}! This is the automated assistant from ${profile.full_name || 'your mortgage advisor'}'s office. I'm calling with some really great news about mortgage rates - do you have a quick minute?"
-
-Wait for their response. If they say yes, continue naturally:
-
-"Excellent! So here's the exciting part - ${client.loan_type || '30-year fixed'} mortgage rates have dropped to ${currentRate}%, which is right at your target rate of ${client.target_rate}%!"
-
-Pause and let them respond. Then share the savings:
-
-"By refinancing now, you could save approximately $${monthlySavings} per month. That's $${monthlySavings * 12} every year back in your pocket!"
-
-Then ask: "Would you like ${profile.full_name || 'your mortgage advisor'} to reach out to discuss your refinancing options and help you get started?"
-
-IMPORTANT RULES:
+PERSONALITY:
+- Warm and conversational (like a helpful friend)
+- Natural pauses and questions
 - Listen actively and respond to what they say
-- If they ask questions, answer them naturally
-- If they're busy, offer to call back later
-- If they're interested, confirm their advisor will call within 24 hours
-- If they're not interested, thank them politely and end the call
-- Keep it conversational and warm, not scripted or robotic
-- Aim for 2-3 minutes, but let the conversation flow naturally
-- Let them interrupt you - it's a sign they're engaged!
+- Never robotic or scripted-sounding
+- Genuinely excited about helping them save money
 
-Remember: You're having a CONVERSATION, not delivering a speech!`,
+RULES:
+- Wait for them to say "hello" before speaking
+- Let them interrupt you - it means they're engaged!
+- If they're busy, offer to call back later
+- If they ask questions, answer naturally
+- Keep the conversation flowing - this isn't a monologue!
+
+OPENING:
+When they answer, wait for their greeting, then say:
+
+"Hey ${client.first_name}! This is ${profile.full_name || 'your mortgage advisor'}'s office calling. I've actually got some really good news for you - do you have just a quick minute?"
+
+[Wait for response. If YES, continue. If NO/BUSY, say: "No problem! What's a better time to call you back?"]
+
+THE GOOD NEWS:
+"So here's the exciting part - mortgage rates just dropped to ${currentRate}%, which is exactly what you've been waiting for!"
+
+[Pause - let them react]
+
+THE SAVINGS:
+"By refinancing now, you'd save about $${monthlySavings} every month. That's over $${monthlySavings * 12} a year back in your pocket!"
+
+[Pause - let them respond]
+
+THE ASK:
+"Would you like ${profile.full_name || 'your advisor'} to give you a call in the next day or two to go over your options and get the ball rolling?"
+
+[Wait for response]
+
+HANDLING RESPONSES:
+- If INTERESTED: "Awesome! ${profile.full_name || 'They'}'ll reach out within 24 hours. You're going to love these savings!"
+- If MAYBE/UNSURE: "Totally understand! Would you like some time to think about it? We can always call back."
+- If NOT INTERESTED: "No worries at all! If anything changes and you want to look at rates, just let us know. Have a great day!"
+- If QUESTIONS: Answer naturally and conversationally
+
+TONE EXAMPLES:
+❌ DON'T SAY: "I am calling to inform you about mortgage rate opportunities."
+✅ DO SAY: "Hey! Got some really good news about your mortgage rates!"
+
+❌ DON'T SAY: "This represents a monthly savings of..."
+✅ DO SAY: "You'd save about [amount] every month - pretty nice, right?"
+
+Remember: You're having a CONVERSATION with a real person. Be warm, natural, and genuinely helpful. Let them guide the conversation. Aim for 2-3 minutes, but let it flow naturally!`,
             
             voice: 'maya',
             max_duration: 5,
@@ -264,7 +293,7 @@ Remember: You're having a CONVERSATION, not delivering a speech!`,
           bland_call_id: clientCallData.call_id,
           phone_number: client.phone,
           call_status: 'initiated',
-          cost_cents: 0 // Will be updated by webhook
+          cost_cents: 0
         })
 
         // Update client record

@@ -67,7 +67,7 @@ serve(async (req) => {
       throw new Error(`Bland API error: ${response.status} - ${errorText}`)
     }
 
-    console.log('✅ Call stopped successfully')
+    console.log('✅ Call stopped successfully via Bland API')
 
     // Update call status in database
     const supabase = createClient(
@@ -75,13 +75,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    await supabase
+    // Mark as 'failed' so it shows up correctly in UI and doesn't conflict with webhook
+    const { error: updateError } = await supabase
       .from('call_logs')
       .update({
-        call_status: 'stopped',
+        call_status: 'failed', // Changed from 'stopped' to 'failed'
         completed_at: new Date().toISOString()
       })
       .eq('bland_call_id', callId)
+
+    if (updateError) {
+      console.error('⚠️ Failed to update database:', updateError)
+      // Don't throw - call was stopped successfully even if DB update failed
+    }
 
     return new Response(
       JSON.stringify({ 

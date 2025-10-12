@@ -80,9 +80,7 @@ export const LiveCallMonitor: React.FC = () => {
   const handleStopCall = async (callId: string) => {
     // Show confirmation dialog
     const confirmed = window.confirm(
-      '⚠️ STOP ACTIVE CALL?\n\n' +
-      'This will immediately end the call.\n\n' +
-      'Are you sure you want to stop this call?'
+      'Are you sure you want to stop this call?\n\nThis will immediately end the active call.'
     );
     
     if (!confirmed) {
@@ -120,7 +118,7 @@ export const LiveCallMonitor: React.FC = () => {
         
         if (!updateError) {
           setActiveCalls(prev => prev.filter(c => c.id !== callId));
-          success('Call cancelled - never connected');
+          success('Call cancelled');
         }
         setStoppingCallId(null);
         return;
@@ -131,7 +129,7 @@ export const LiveCallMonitor: React.FC = () => {
       
       // Remove from active calls list
       setActiveCalls(prev => prev.filter(c => c.id !== callId));
-      success('✅ Call stopped successfully');
+      success('Call stopped - results will appear shortly');
       
     } catch (error: any) {
       console.error('Error stopping call:', error);
@@ -142,9 +140,9 @@ export const LiveCallMonitor: React.FC = () => {
         success('Call already ended');
       } else if (error.message?.includes('401')) {
         setActiveCalls(prev => prev.filter(c => c.id !== callId));
-        showError('⚠️ Unable to verify call status - please refresh');
+        showError('Unable to verify call status');
       } else {
-        showError('❌ Failed to stop call - please try again');
+        showError('Failed to stop call');
       }
     } finally {
       setStoppingCallId(null);
@@ -261,7 +259,7 @@ export const LiveCallMonitor: React.FC = () => {
               ) : (
                 <>
                   <PhoneOff className="w-4 h-4 mr-1" />
-                  Stop Call
+                  Stop
                 </>
               )}
             </Button>
@@ -272,7 +270,7 @@ export const LiveCallMonitor: React.FC = () => {
       <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
         <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-800 dark:text-blue-200">
-          Live calls refresh every 5 seconds. Use "Stop Call" to end an active call immediately.
+          Calls auto-refresh every 5 seconds. Results appear after calls end.
         </p>
       </div>
     </div>

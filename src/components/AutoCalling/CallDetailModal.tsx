@@ -1,4 +1,4 @@
-// src/components/AutoCalling/CallDetailModal.tsx - NO COST DISPLAY
+// src/components/AutoCalling/CallDetailModal.tsx - Chat Bubble Transcript UI
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
@@ -10,6 +10,30 @@ interface CallDetailModalProps {
   isOpen: boolean
   onClose: () => void
   call: CallLogEntry | null
+}
+
+// Parse transcript into chat messages
+const parseTranscript = (transcript: string) => {
+  if (!transcript) return []
+  
+  const messages: { speaker: string; text: string }[] = []
+  const lines = transcript.split('\n').filter(line => line.trim())
+  
+  for (const line of lines) {
+    if (line.trim().startsWith('user:')) {
+      messages.push({
+        speaker: 'user',
+        text: line.replace(/^user:\s*/i, '').trim()
+      })
+    } else if (line.trim().startsWith('assistant:')) {
+      messages.push({
+        speaker: 'assistant',
+        text: line.replace(/^assistant:\s*/i, '').trim()
+      })
+    }
+  }
+  
+  return messages
 }
 
 export const CallDetailModal: React.FC<CallDetailModalProps> = ({
@@ -216,7 +240,11 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
               <span className="text-sm text-gray-600 dark:text-gray-400">Duration</span>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {call.call_duration ? formatDuration(call.call_duration) : 'N/A'}
+              {call.call_duration !== null && call.call_duration !== undefined 
+                ? formatDuration(call.call_duration) 
+                : call.completed_at 
+                  ? 'Processing...' 
+                  : 'N/A'}
             </div>
           </div>
 
@@ -273,7 +301,7 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
           </div>
         )}
 
-        {/* Transcript - Simple Version */}
+        {/* Transcript - Chat Bubble UI */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
             <MessageSquare className="w-5 h-5" />
@@ -286,12 +314,65 @@ export const CallDetailModal: React.FC<CallDetailModalProps> = ({
               <p className="mt-2 text-gray-600 dark:text-gray-400">Loading transcript...</p>
             </div>
           ) : fullTranscript && fullTranscript !== 'Transcript not available yet' ? (
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
-              <div className="prose dark:prose-invert max-w-none">
-                <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
-                  {fullTranscript}
-                </p>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4">
+                {parseTranscript(fullTranscript).map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-start gap-3 ${
+                      message.speaker === 'assistant' ? 'flex-row' : 'flex-row-reverse'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                        message.speaker === 'assistant'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-green-500 text-white'
+                      }`}
+                    >
+                      {message.speaker === 'assistant' ? (
+                        <Sparkles className="w-4 h-4" />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
+                    </div>
+
+                    {/* Message Bubble */}
+                    <div
+                      className={`flex-1 max-w-[75%] ${
+                        message.speaker === 'assistant' ? 'mr-auto' : 'ml-auto'
+                      }`}
+                    >
+                      <div
+                        className={`rounded-2xl px-4 py-3 ${
+                          message.speaker === 'assistant'
+                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-tl-none'
+                            : 'bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-tr-none'
+                        }`}
+                      >
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {message.text}
+                        </p>
+                      </div>
+                      <div
+                        className={`text-xs text-gray-500 dark:text-gray-400 mt-1 px-2 ${
+                          message.speaker === 'assistant' ? 'text-left' : 'text-right'
+                        }`}
+                      >
+                        {message.speaker === 'assistant' ? 'AI Assistant' : 'User'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+          ) : call.completed_at && !call.call_duration ? (
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+              <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                Processing call data...
+              </h4>
             </div>
           ) : (
             <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
