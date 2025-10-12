@@ -13,6 +13,70 @@ interface CallRequest {
   callType?: 'both' | 'client-only' | 'broker-only'
 }
 
+// 💰 ACCURATE MORTGAGE CALCULATION
+const calculateMonthlySavings = (
+  currentRate: number,
+  newRate: number,
+  loanAmount: number,
+  termYears: number = 30
+): number => {
+  if (!loanAmount || !currentRate || !newRate) {
+    console.error('❌ Missing calculation data:', { currentRate, newRate, loanAmount })
+    return 0
+  }
+
+  // Validate inputs
+  if (currentRate <= 0 || newRate <= 0 || loanAmount <= 0) {
+    console.error('❌ Invalid calculation inputs:', { currentRate, newRate, loanAmount })
+    return 0
+  }
+
+  const monthlyRateCurrent = currentRate / 100 / 12
+  const monthlyRateNew = newRate / 100 / 12
+  const months = termYears * 12
+
+  const currentPayment = loanAmount *
+    (monthlyRateCurrent * Math.pow(1 + monthlyRateCurrent, months)) /
+    (Math.pow(1 + monthlyRateCurrent, months) - 1)
+
+  const newPayment = loanAmount *
+    (monthlyRateNew * Math.pow(1 + monthlyRateNew, months)) /
+    (Math.pow(1 + monthlyRateNew, months) - 1)
+
+  const savings = Math.round(currentPayment - newPayment)
+
+  // 🚨 VALIDATION: Flag suspicious calculations
+  if (savings < 0) {
+    console.warn('⚠️ Negative savings calculated - new rate higher than current?', {
+      currentRate,
+      newRate,
+      savings
+    })
+  }
+
+  if (savings > loanAmount * 0.01) {
+    console.warn('⚠️ Very high savings (>1% of loan amount) - verify rates:', {
+      currentRate,
+      newRate,
+      loanAmount,
+      savings
+    })
+  }
+
+  console.log('✅ Calculated savings:', {
+    currentRate,
+    newRate,
+    loanAmount,
+    termYears,
+    currentPayment: Math.round(currentPayment),
+    newPayment: Math.round(newPayment),
+    monthlySavings: savings,
+    annualSavings: savings * 12
+  })
+
+  return savings
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -20,14 +84,14 @@ serve(async (req) => {
 
   try {
     const { clientId, userId, callType = 'client-only' }: CallRequest = await req.json()
-    
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
-    
+
     const BLAND_API_KEY = Deno.env.get('BLAND_API_KEY')
-    
+
     if (!BLAND_API_KEY) {
       throw new Error('BLAND_API_KEY not configured')
     }
@@ -38,54 +102,130 @@ serve(async (req) => {
       .select('*')
       .eq('id', userId)
       .single()
-    
+
     if (profileError) throw profileError
 
-    // Get client details
-    const { data: client, error: clientError } = await supabase
+    // 🎯 GET CLIENT WITH MORTGAGE DATA (JOIN)
+    const { data: clientData, error: clientError } = await supabase
       .from('clients')
-      .select('*')
+      .select(`
+        *,
+        mortgages (
+          id,
+          current_rate,
+          target_rate,
+          loan_amount,
+          term_years,
+          loan_type,
+          lender
+        )
+      `)
       .eq('id', clientId)
       .single()
-    
+
     if (clientError) throw clientError
 
-    // Get current market rate for this loan type
+    // Extract mortgage data (single mortgage per client)
+    const client = clientData as any
+    const mortgage = client.mortgages?.[0] || client.mortgages
+
+    if (!mortgage) {
+      throw new Error(`No mortgage found for client ${client.first_name} ${client.last_name}`)
+    }
+
+    console.log('📊 Client data loaded:', {
+      client: `${client.first_name} ${client.last_name}`,
+      mortgage: {
+        loan_type: mortgage.loan_type,
+        term_years: mortgage.term_years,
+        current_rate: mortgage.current_rate,
+        target_rate: mortgage.target_rate,
+        loan_amount: mortgage.loan_amount
+      }
+    })
+
+    // 🎯 GET CURRENT MARKET RATE (REAL DATA, NO FALLBACK!)
     const { data: rateData, error: rateError } = await supabase
       .from('rate_history')
       .select('rate_value')
-      .eq('term_years', client.loan_term || 30)
-      .eq('loan_type', client.loan_type || 'conventional')
+      .eq('term_years', mortgage.term_years || 30)
+      .eq('loan_type', mortgage.loan_type || 'conventional')
       .order('rate_date', { ascending: false })
       .limit(1)
       .single()
-    
-    const currentRate = rateData?.rate_value || 6.5
 
-    // Calculate savings
-    const calculateMonthlySavings = (currentRate: number, newRate: number, loanAmount: number): number => {
-      if (!loanAmount || !currentRate || !newRate) return 0
-      
-      const monthlyRateCurrent = currentRate / 100 / 12
-      const monthlyRateNew = newRate / 100 / 12
-      const months = 360 // 30 year loan
-      
-      const currentPayment = loanAmount * 
-        (monthlyRateCurrent * Math.pow(1 + monthlyRateCurrent, months)) / 
-        (Math.pow(1 + monthlyRateCurrent, months) - 1)
-      
-      const newPayment = loanAmount * 
-        (monthlyRateNew * Math.pow(1 + monthlyRateNew, months)) / 
-        (Math.pow(1 + monthlyRateNew, months) - 1)
-      
-      return Math.round(currentPayment - newPayment)
+    if (rateError || !rateData) {
+      throw new Error(
+        `No current market rate found for ${mortgage.loan_type} ${mortgage.term_years}-year loan. ` +
+        `Please update rate_history table with current rates.`
+      )
     }
 
+    const currentMarketRate = rateData.rate_value
+
+    console.log('📈 Market rate loaded:', {
+      loan_type: mortgage.loan_type,
+      term_years: mortgage.term_years,
+      current_market_rate: currentMarketRate
+    })
+
+    // 🚨 VALIDATION: Check if target rate has been hit
+    if (currentMarketRate > mortgage.target_rate) {
+      console.warn('⚠️ Market rate not yet at target:', {
+        market: currentMarketRate,
+        target: mortgage.target_rate,
+        difference: (currentMarketRate - mortgage.target_rate).toFixed(3)
+      })
+      // Could optionally throw error here to prevent premature calls
+    }
+
+    // 💰 CALCULATE SAVINGS (with validation)
     const monthlySavings = calculateMonthlySavings(
-      client.current_rate || currentRate + 0.5,
-      currentRate,
-      client.loan_amount || 300000
+      mortgage.current_rate,
+      currentMarketRate,
+      mortgage.loan_amount,
+      mortgage.term_years
     )
+
+    if (monthlySavings <= 0) {
+      throw new Error(
+        `Invalid savings calculation: $${monthlySavings}. ` +
+        `Current rate (${mortgage.current_rate}%) must be higher than market rate (${currentMarketRate}%).`
+      )
+    }
+
+    const annualSavings = monthlySavings * 12
+
+    // 🎯 DYNAMIC VARIABLES FOR SCRIPTS
+    const vars = {
+      // Client info
+      first_name: client.first_name,
+      last_name: client.last_name,
+      full_name: `${client.first_name} ${client.last_name}`,
+
+      // Broker info
+      broker_name: profile.full_name || 'your mortgage advisor',
+      company: profile.company || profile.company_name || 'their mortgage office',
+
+      // Loan details
+      loan_type: mortgage.loan_type || 'conventional',
+      loan_type_full: `${mortgage.loan_type || 'conventional'} ${mortgage.term_years || 30}-year`,
+      loan_amount: mortgage.loan_amount?.toLocaleString() || '300,000',
+      term_years: mortgage.term_years || 30,
+      lender: mortgage.lender || 'your current lender',
+
+      // Rates
+      current_rate: mortgage.current_rate?.toFixed(3) || 'N/A',
+      target_rate: mortgage.target_rate?.toFixed(3) || 'N/A',
+      market_rate: currentMarketRate.toFixed(3),
+
+      // Savings
+      monthly_savings: monthlySavings.toLocaleString(),
+      annual_savings: annualSavings.toLocaleString(),
+      lifetime_savings: (annualSavings * mortgage.term_years).toLocaleString()
+    }
+
+    console.log('✅ Dynamic variables prepared:', vars)
 
     const results = {
       brokerCallId: null as string | null,
@@ -97,7 +237,7 @@ serve(async (req) => {
     // STEP 1: Call broker first (if enabled and requested)
     if (
       (callType === 'both' || callType === 'broker-only') &&
-      profile.broker_calls_enabled && 
+      profile.broker_calls_enabled &&
       profile.broker_phone_number
     ) {
       try {
@@ -109,16 +249,16 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             phone_number: profile.broker_phone_number,
-            
-            // 🎯 CONVERSATIONAL AI SETTINGS - IMPROVED THRESHOLD
+
+            // 🎯 CONVERSATIONAL AI SETTINGS
             wait_for_greeting: true,
-            interruption_threshold: 400, // ⬆️ Increased from 300 to 400 (less sensitive to background noise)
+            interruption_threshold: 400,
             temperature: 0.7,
             language: 'eng',
             background_track: 'none',
-            
-            // 📞 BROKER SCRIPT - PROFESSIONAL & TO-THE-POINT
-            task: `You are calling ${profile.full_name || 'a mortgage broker'} with a time-sensitive client opportunity.
+
+            // 📞 BROKER SCRIPT - PROFESSIONAL & TO-THE-POINT (with dynamic variables)
+            task: `You are calling ${vars.broker_name} with a time-sensitive client opportunity.
 
 RULES:
 - Wait for them to answer and greet you first
@@ -129,15 +269,15 @@ RULES:
 SCRIPT:
 When they greet you, say:
 
-"Hi, this is your rate alert system. Quick update - ${client.first_name} ${client.last_name} just hit their target rate."
+"Hi, this is your rate alert system. Quick update - ${vars.first_name} ${vars.last_name} just hit their target rate."
 
 Pause briefly, then deliver the key info:
 
-"${client.loan_type || 'Conventional 30-year'} at ${currentRate}%, target was ${client.target_rate}%. Monthly savings: $${monthlySavings}."
+"${vars.loan_type_full} dropped to ${vars.market_rate}%, target was ${vars.target_rate}%. Monthly savings: $${vars.monthly_savings}."
 
 Then ask:
 
-"Your system will call ${client.first_name} in 2 minutes. Want to reach out personally instead?"
+"Your system will call ${vars.first_name} in 2 minutes. Want to reach out personally instead?"
 
 Wait for their response:
 - If YES: "Perfect, I'll cancel the automated call. Good luck!"
@@ -145,7 +285,7 @@ Wait for their response:
 - If they have questions: Answer briefly and professionally
 
 Keep it under 90 seconds. They're busy, so respect their time.`,
-            
+
             voice: 'maya',
             max_duration: 3,
             webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
@@ -159,7 +299,7 @@ Keep it under 90 seconds. They're busy, so respect their time.`,
 
         if (!brokerCallResponse.ok) {
           const errorText = await brokerCallResponse.text()
-          console.error('Bland API error:', errorText)
+          console.error('❌ Bland API error:', errorText)
           throw new Error(`Bland API error: ${brokerCallResponse.status} - ${errorText}`)
         }
 
@@ -177,13 +317,16 @@ Keep it under 90 seconds. They're busy, so respect their time.`,
           cost_cents: 0
         })
 
+        console.log('✅ Broker call initiated:', brokerCallData.call_id)
+
         // Wait 2 minutes before calling client
         if (callType === 'both') {
+          console.log('⏳ Waiting 2 minutes before client call...')
           await new Promise(resolve => setTimeout(resolve, 120000))
         }
 
       } catch (brokerError) {
-        console.error('Error calling broker:', brokerError)
+        console.error('❌ Error calling broker:', brokerError)
         results.error = `Broker call failed: ${brokerError.message}`
       }
     }
@@ -203,16 +346,16 @@ Keep it under 90 seconds. They're busy, so respect their time.`,
           },
           body: JSON.stringify({
             phone_number: client.phone,
-            
-            // 🎯 CONVERSATIONAL AI SETTINGS - IMPROVED THRESHOLD
+
+            // 🎯 CONVERSATIONAL AI SETTINGS
             wait_for_greeting: true,
-            interruption_threshold: 400, // ⬆️ Increased from 300 to 400 (less sensitive to background noise)
+            interruption_threshold: 400,
             temperature: 0.7,
             language: 'eng',
             background_track: 'none',
-            
-            // 💬 CLIENT SCRIPT - WARM, NATURAL & CONVERSATIONAL
-            task: `You are a friendly assistant calling ${client.first_name} ${client.last_name} on behalf of their mortgage advisor ${profile.full_name || profile.company || 'their mortgage office'}.
+
+            // 💬 CLIENT SCRIPT - WARM, NATURAL & CONVERSATIONAL (with dynamic variables)
+            task: `You are a friendly assistant calling ${vars.first_name} ${vars.last_name} on behalf of ${vars.broker_name} at ${vars.company}.
 
 PERSONALITY:
 - Warm and conversational (like a helpful friend)
@@ -231,54 +374,61 @@ RULES:
 OPENING:
 When they answer, wait for their greeting, then say:
 
-"Hey ${client.first_name}! This is ${profile.full_name || 'your mortgage advisor'}'s office calling. I've actually got some really good news for you - do you have just a quick minute?"
+"Hey ${vars.first_name}! This is ${vars.broker_name}'s office calling. I've actually got some really good news for you - do you have just a quick minute?"
 
 [Wait for response. If YES, continue. If NO/BUSY, say: "No problem! What's a better time to call you back?"]
 
 THE GOOD NEWS:
-"So here's the exciting part - mortgage rates just dropped to ${currentRate}%, which is exactly what you've been waiting for!"
+"So here's the exciting part - ${vars.loan_type} mortgage rates just dropped to ${vars.market_rate}%, which is exactly what you've been waiting for!"
 
 [Pause - let them react]
 
 THE SAVINGS:
-"By refinancing now, you'd save about $${monthlySavings} every month. That's over $${monthlySavings * 12} a year back in your pocket!"
+"By refinancing now, you'd save about $${vars.monthly_savings} every month. That's over $${vars.annual_savings} a year back in your pocket!"
 
 [Pause - let them respond]
 
 THE ASK:
-"Would you like ${profile.full_name || 'your advisor'} to give you a call in the next day or two to go over your options and get the ball rolling?"
+"Would you like ${vars.broker_name} to give you a call in the next day or two to go over your options and get the ball rolling?"
 
 [Wait for response]
 
 HANDLING RESPONSES:
-- If INTERESTED: "Awesome! ${profile.full_name || 'They'}'ll reach out within 24 hours. You're going to love these savings!"
+- If INTERESTED: "Awesome! ${vars.broker_name} will reach out within 24 hours. You're going to love these savings!"
 - If MAYBE/UNSURE: "Totally understand! Would you like some time to think about it? We can always call back."
 - If NOT INTERESTED: "No worries at all! If anything changes and you want to look at rates, just let us know. Have a great day!"
 - If QUESTIONS: Answer naturally and conversationally
+
+ADDITIONAL CONTEXT (use if they ask):
+- Current lender: ${vars.lender}
+- Your loan is with ${vars.lender}
+- Your ${vars.loan_type_full} loan
+- Over the life of the loan, that's about $${vars.lifetime_savings} in total savings
 
 TONE EXAMPLES:
 ❌ DON'T SAY: "I am calling to inform you about mortgage rate opportunities."
 ✅ DO SAY: "Hey! Got some really good news about your mortgage rates!"
 
 ❌ DON'T SAY: "This represents a monthly savings of..."
-✅ DO SAY: "You'd save about [amount] every month - pretty nice, right?"
+✅ DO SAY: "You'd save about $${vars.monthly_savings} every month - pretty nice, right?"
 
 Remember: You're having a CONVERSATION with a real person. Be warm, natural, and genuinely helpful. Let them guide the conversation. Aim for 2-3 minutes, but let it flow naturally!`,
-            
+
             voice: 'maya',
             max_duration: 5,
             webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
             metadata: {
               call_type: 'client',
               user_id: userId,
-              client_id: clientId
+              client_id: clientId,
+              mortgage_id: mortgage.id
             }
           })
         })
 
         if (!clientCallResponse.ok) {
           const errorText = await clientCallResponse.text()
-          console.error('Bland API error:', errorText)
+          console.error('❌ Bland API error:', errorText)
           throw new Error(`Bland API error: ${clientCallResponse.status} - ${errorText}`)
         }
 
@@ -305,10 +455,12 @@ Remember: You're having a CONVERSATION with a real person. Be warm, natural, and
           })
           .eq('id', clientId)
 
+        console.log('✅ Client call initiated:', clientCallData.call_id)
+
         results.success = true
 
       } catch (clientError) {
-        console.error('Error calling client:', clientError)
+        console.error('❌ Error calling client:', clientError)
         results.error = `Client call failed: ${clientError.message}`
       }
     }
@@ -326,17 +478,23 @@ Remember: You're having a CONVERSATION with a real person. Be warm, natural, and
 
     return new Response(
       JSON.stringify({
-        success: results.success || !!results.brokerCallId, 
+        success: results.success || !!results.brokerCallId,
         brokerCallId: results.brokerCallId,
         clientCallId: results.clientCallId,
         error: results.error,
-        message: results.brokerCallId && results.clientCallId 
+        message: results.brokerCallId && results.clientCallId
           ? 'Called broker and client successfully'
-          : results.brokerCallId 
+          : results.brokerCallId
             ? 'Called broker successfully'
             : results.clientCallId
               ? 'Called client successfully'
-              : 'No calls were made'
+              : 'No calls were made',
+        // Return calculated values for debugging
+        debug: {
+          market_rate: currentMarketRate,
+          monthly_savings: monthlySavings,
+          annual_savings: annualSavings
+        }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -345,7 +503,7 @@ Remember: You're having a CONVERSATION with a real person. Be warm, natural, and
     )
 
   } catch (error) {
-    console.error('Make-call function error:', error)
+    console.error('❌ Make-call function error:', error)
     return new Response(
       JSON.stringify({
         success: false,
