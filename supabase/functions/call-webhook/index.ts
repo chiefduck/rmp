@@ -1,3 +1,4 @@
+// supabase/functions/call-webhook/index.ts - Secure Bland Webhook Handler
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7'
 
@@ -13,7 +14,28 @@ serve(async (req) => {
   }
 
   try {
+    // Verify webhook signature for security
+    const signature = req.headers.get('bland-signature')
+    const webhookSecret = Deno.env.get('BLAND_WEBHOOK_SECRET')
+    
+    if (webhookSecret && signature !== webhookSecret) {
+      console.error('Invalid webhook signature')
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid signature' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      )
+    }
+
     const payload = await req.json()
+    
+    console.log('Webhook received:', {
+      call_id: payload.call_id,
+      status: payload.status,
+      call_length: payload.call_length
+    })
     
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -34,7 +56,7 @@ serve(async (req) => {
     const costCents = Math.ceil((call_length || 0) / 60 * 9)
 
     // Update call log
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('call_logs')
       .update({
         call_status: status,
@@ -51,14 +73,22 @@ serve(async (req) => {
       throw error
     }
 
+    console.log('Call log updated successfully:', call_id)
+
     // Optional: Send notification to user about completed call
     if (metadata?.user_id && status === 'completed') {
       // Could trigger email notification here
       // Or update a notifications table
+      console.log('Call completed for user:', metadata.user_id)
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Webhook processed' }),
+      JSON.stringify({ 
+        success: true, 
+        message: 'Webhook processed',
+        call_id: call_id,
+        status: status
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
