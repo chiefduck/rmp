@@ -1,8 +1,8 @@
-// src/pages/Dashboard.tsx - Updated with clickable cards and modals
+// src/pages/Dashboard.tsx - CLEANED UP (Only Add Client + View Rates)
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingDown, Phone, Mail, DollarSign, Target, RefreshCw, TrendingUp } from 'lucide-react';
+import { Users, TrendingDown, RefreshCw, TrendingUp, Target, DollarSign } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -204,11 +204,24 @@ const Dashboard: React.FC = () => {
     }
   ], [stats]);
 
+  // 🔥 CLEANED UP: Only 2 quick actions now
   const quickActions = [
-    { label: 'Add Client', icon: Users, onClick: () => navigate('/crm', { state: { openAddModal: true } }), className: 'bg-blue-50/50 dark:bg-blue-900/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30', iconClass: 'text-blue-600', textClass: 'text-blue-900 dark:text-blue-300' },
-    { label: 'Start Calling', icon: Phone, onClick: () => navigate('/calling'), className: 'bg-green-50/50 dark:bg-green-900/20 hover:bg-green-100/70 dark:hover:bg-green-900/30', iconClass: 'text-green-600', textClass: 'text-green-900 dark:text-green-300' },
-    { label: 'View Rates', icon: TrendingDown, onClick: () => navigate('/rates'), className: 'bg-purple-50/50 dark:bg-purple-900/20 hover:bg-purple-100/70 dark:hover:bg-purple-900/30', iconClass: 'text-purple-600', textClass: 'text-purple-900 dark:text-purple-300' },
-    { label: 'AI Assistant', icon: Mail, onClick: () => navigate('/ai-assistant'), className: 'bg-orange-50/50 dark:bg-orange-900/20 hover:bg-orange-100/70 dark:hover:bg-orange-900/30', iconClass: 'text-orange-600', textClass: 'text-orange-900 dark:text-orange-300' },
+    { 
+      label: 'Add Client', 
+      icon: Users, 
+      onClick: () => navigate('/crm', { state: { openAddModal: true } }), 
+      className: 'bg-blue-50/50 dark:bg-blue-900/20 hover:bg-blue-100/70 dark:hover:bg-blue-900/30', 
+      iconClass: 'text-blue-600', 
+      textClass: 'text-blue-900 dark:text-blue-300' 
+    },
+    { 
+      label: 'View Rates', 
+      icon: TrendingDown, 
+      onClick: () => navigate('/rates'), 
+      className: 'bg-purple-50/50 dark:bg-purple-900/20 hover:bg-purple-100/70 dark:hover:bg-purple-900/30', 
+      iconClass: 'text-purple-600', 
+      textClass: 'text-purple-900 dark:text-purple-300' 
+    }
   ];
 
   return (
@@ -240,7 +253,7 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Rate Widgets - NOW CLICKABLE */}
+        {/* Rate Widgets - Clickable */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
           {rateWidgets.map((rate) => {
             const ChangeIcon = getChangeIcon(rate.change);
@@ -271,7 +284,6 @@ const Dashboard: React.FC = () => {
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {formatRateDate(rate.date)}
                   </p>
-                  {/* Click indicator */}
                   <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="w-6 h-6 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-lg">
                       <svg className="w-3 h-3 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -285,7 +297,7 @@ const Dashboard: React.FC = () => {
           })}
         </div>
 
-        {/* Stat Cards - NOW CLICKABLE */}
+        {/* Stat Cards - Clickable */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {statCards.map(card => (
             <button
@@ -304,7 +316,6 @@ const Dashboard: React.FC = () => {
                     <card.icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
-                {/* Click indicator */}
                 <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="w-6 h-6 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-lg">
                     <svg className="w-3 h-3 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -317,10 +328,10 @@ const Dashboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Quick Actions */}
+        {/* 🔥 Quick Actions - Only 2 Buttons Now */}
         <div className="relative backdrop-blur-sm bg-white/60 dark:bg-gray-800/60 border border-white/20 dark:border-gray-700/50 rounded-xl md:rounded-2xl p-4 md:p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
             {quickActions.map(action => (
               <button 
                 key={action.label} 

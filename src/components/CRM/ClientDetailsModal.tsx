@@ -1,10 +1,12 @@
+// src/components/CRM/ClientDetailsModal.tsx - WITH MANUAL LOG CONTACT
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { User, Phone, Mail, DollarSign, Calendar, MessageSquare, Plus, X, Edit, Trash2 } from 'lucide-react'
+import { User, Phone, Mail, DollarSign, Calendar, MessageSquare, Plus, X, Edit, Trash2, Clock } from 'lucide-react'
 import { Client, ClientNote } from '../../lib/supabase'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { useToast } from '../../contexts/ToastContext' // ← ADD THIS IMPORT
 
 interface ClientDetailsModalProps {
   isOpen: boolean
@@ -20,11 +22,13 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
   onEdit
 }) => {
   const { user } = useAuth()
+  const { success: showSuccess, error: showError } = useToast() // ← ADD THIS
   const [notes, setNotes] = useState<ClientNote[]>([])
   const [loading, setLoading] = useState(false)
   const [newNote, setNewNote] = useState('')
   const [addingNote, setAddingNote] = useState(false)
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
+  const [loggingContact, setLoggingContact] = useState(false) // ← ADD THIS
 
   useEffect(() => {
     if (client && isOpen) {
@@ -56,6 +60,52 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
       console.error('Error fetching notes:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 🔥 NEW: Manual Log Contact Function (with note creation)
+  const handleLogContact = async () => {
+    if (!client || !user) return
+    
+    setLoggingContact(true)
+    try {
+      // Update last_contact timestamp
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ 
+          last_contact: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', client.id)
+      
+      if (updateError) throw updateError
+      
+      // Create a note to track the manual contact log
+      const { error: noteError } = await supabase
+        .from('client_notes')
+        .insert({
+          client_id: client.id,
+          user_id: user.id,
+          note: 'Manual contact logged',
+          note_type: 'general'
+        })
+      
+      if (noteError) throw noteError
+      
+      // Update local client object
+      if (client) {
+        client.last_contact = new Date().toISOString()
+      }
+      
+      // Refresh notes to show the new one
+      await fetchNotes()
+      
+      showSuccess('Contact logged successfully! ✓')
+    } catch (error) {
+      console.error('Error logging contact:', error)
+      showError('Failed to log contact. Please try again.')
+    } finally {
+      setLoggingContact(false)
     }
   }
 
@@ -198,8 +248,8 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-2 w-full sm:w-auto">
+            {/* 🔥 UPDATED: Action Buttons - Added Log Contact */}
+            <div className="flex items-center flex-wrap gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
@@ -218,6 +268,19 @@ export const ClientDetailsModal: React.FC<ClientDetailsModalProps> = ({
                 <Mail className="w-4 h-4 sm:mr-2" />
                 <span className="hidden sm:inline">Email</span>
               </Button>
+              
+              {/* 🔥 NEW: Log Contact Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogContact}
+                loading={loggingContact}
+                className="flex-1 sm:flex-none bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 dark:border-orange-800 dark:text-orange-300 min-h-[44px]"
+              >
+                <Clock className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Log Contact</span>
+              </Button>
+              
               <Button
                 variant="outline"
                 size="sm"

@@ -1,4 +1,4 @@
-// supabase/functions/check-rate-alerts/index.ts
+// supabase/functions/check-rate-alerts/index.ts - WITH 7-DAY COOLDOWN
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1'
 
@@ -9,6 +9,9 @@ const supabase = createClient(
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
 const APP_URL = Deno.env.get('APP_URL') || 'https://ratemonitorpro.com'
+
+// 🔥 NEW: 7-day cooldown (was 24 hours)
+const COOLDOWN_DAYS = 7
 
 interface RateAlert {
   clientId: string
@@ -104,12 +107,12 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Check if rate hit target
+      // Check if rate hit target OR dropped below
       if (currentRateData.rate <= client.target_rate) {
         console.log(`🎯 Target hit for ${client.first_name} ${client.last_name}`)
 
-        // Check cooldown (24 hours)
-        const cooldownTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        // 🔥 UPDATED: Check 7-day cooldown (was 24 hours)
+        const cooldownTime = new Date(Date.now() - COOLDOWN_DAYS * 24 * 60 * 60 * 1000).toISOString()
         const { data: recentAlerts } = await supabase
           .from('email_logs')
           .select('id')
@@ -118,7 +121,7 @@ Deno.serve(async (req) => {
           .gte('sent_at', cooldownTime)
 
         if (recentAlerts && recentAlerts.length > 0) {
-          console.log(`⏰ Cooldown active for client ${client.id}`)
+          console.log(`⏰ 7-day cooldown active for client ${client.id}`)
           continue
         }
 
@@ -265,6 +268,7 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Success: ${successful}/${alertsToSend.length} alerts sent`)
     console.log(`📨 Client emails sent: ${totalClientEmails}`)
+    console.log(`⏰ Next alerts can be sent after ${COOLDOWN_DAYS}-day cooldown`)
 
     return new Response(
       JSON.stringify({
@@ -272,6 +276,7 @@ Deno.serve(async (req) => {
         clientsChecked: clients?.length || 0,
         alertsSent: successful,
         clientEmailsSent: totalClientEmails,
+        cooldownDays: COOLDOWN_DAYS,
         results
       }),
       {
@@ -342,6 +347,12 @@ function createBrokerEmail(data: RateAlert): string {
             <p style="color: #1e3a8a; margin: 8px 0 0 0; font-size: 32px; font-weight: 700;">$${savingsEstimate.toLocaleString()}</p>
           </div>
           
+          <div style="background: #fef3c7; border: 2px solid #f59e0b; padding: 16px; border-radius: 12px; margin-bottom: 24px;">
+            <p style="color: #92400e; margin: 0; font-size: 13px; text-align: center;">
+              ⏰ <strong>7-Day Cooldown Active</strong> - Next alert won't send for 7 days
+            </p>
+          </div>
+          
           <div style="text-align: center; margin-bottom: 30px;">
             <a href="${APP_URL}/crm?client=${data.clientId}" 
                style="background: #10b981; color: white; padding: 16px 32px; text-decoration: none; border-radius: 10px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
@@ -384,7 +395,7 @@ function createBrokerEmail(data: RateAlert): string {
   `
 }
 
-// 📧 CLIENT EMAIL TEMPLATE
+// 📧 CLIENT EMAIL TEMPLATE (unchanged)
 function createClientEmail(data: RateAlert): string {
   return `
     <!DOCTYPE html>
@@ -399,7 +410,7 @@ function createClientEmail(data: RateAlert): string {
       <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
         
         <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
-          <div style="background: white; width: 70px; height: 70px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+          <div style="background: white; width: 70px; height: 70px; border-radius: 50%; display: inline-flex; align-items: center; justify-center; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
             <span style="font-size: 36px;">🎉</span>
           </div>
           <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">Great News!</h1>

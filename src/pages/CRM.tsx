@@ -187,13 +187,34 @@ export const CRM: React.FC = () => {
         return
       }
     }
-
+  
     setActiveClients(prev => prev.map(client => client.id === clientId ? { ...client, current_stage: newStage as any } : client))
     
     try {
-      const { error } = await supabase.from('clients').update({ current_stage: newStage, updated_at: new Date().toISOString() }).eq('id', clientId)
+      // 🔥 UPDATED: Now auto-updates last_contact timestamp
+      const { error } = await supabase
+        .from('clients')
+        .update({ 
+          current_stage: newStage,
+          last_contact: new Date().toISOString(), // ← AUTO UPDATE CONTACT
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', clientId)
+        
       if (error) throw error
-      await supabase.from('client_notes').insert({ client_id: clientId, user_id: user?.id, note: `Stage changed from ${previousStage} to ${newStage}`, note_type: 'stage_change', previous_stage: previousStage, new_stage: newStage })
+      
+      // Log the stage change note
+      await supabase
+        .from('client_notes')
+        .insert({ 
+          client_id: clientId, 
+          user_id: user?.id, 
+          note: `Stage changed from ${previousStage} to ${newStage}`, 
+          note_type: 'stage_change', 
+          previous_stage: previousStage, 
+          new_stage: newStage 
+        })
+        
       success('Client stage updated successfully')
     } catch (error) {
       console.error('Error updating stage:', error)

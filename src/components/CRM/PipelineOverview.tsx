@@ -25,7 +25,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = ({
   clients,
   onViewClient
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [modalInsightType, setModalInsightType] = useState<'stale' | 'ready' | 'followup' | 'closing' | 'hot' | 'cold' | null>(null)
   

@@ -1,5 +1,6 @@
+// src/components/CRM/ClientCard.tsx - WITH HOT/COLD BADGES
 import React from 'react'
-import { Phone, Mail, DollarSign, Calendar, Edit, MessageSquare, User, Trash2 } from 'lucide-react'
+import { Phone, Mail, DollarSign, Calendar, Edit, MessageSquare, User, Trash2, Flame, Snowflake, AlertTriangle } from 'lucide-react'
 import { Card, CardContent } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Client } from '../../lib/supabase'
@@ -20,6 +21,49 @@ export const ClientCard: React.FC<ClientCardProps> = ({
   onDelete 
 }) => {
   const clientName = `${client.first_name} ${client.last_name}`.trim()
+
+  // 🔥 NEW: Calculate days since last contact
+  const getDaysSinceContact = (lastContact?: string): number => {
+    if (!lastContact) return 999
+    const lastContactDate = new Date(lastContact)
+    const today = new Date()
+    const diffTime = today.getTime() - lastContactDate.getTime()
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  }
+
+  // 🔥 NEW: Get contact status badge
+  const getContactStatus = () => {
+    const days = getDaysSinceContact(client.last_contact)
+    
+    if (days < 7) {
+      return {
+        label: 'Hot',
+        icon: Flame,
+        bgColor: 'bg-green-100 dark:bg-green-900/30',
+        textColor: 'text-green-700 dark:text-green-300',
+        borderColor: 'border-green-300 dark:border-green-700',
+        iconColor: 'text-green-600 dark:text-green-400'
+      }
+    } else if (days < 30) {
+      return {
+        label: 'Warm',
+        icon: AlertTriangle,
+        bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+        textColor: 'text-yellow-700 dark:text-yellow-300',
+        borderColor: 'border-yellow-300 dark:border-yellow-700',
+        iconColor: 'text-yellow-600 dark:text-yellow-400'
+      }
+    } else {
+      return {
+        label: 'Cold',
+        icon: Snowflake,
+        bgColor: 'bg-red-100 dark:bg-red-900/30',
+        textColor: 'text-red-700 dark:text-red-300',
+        borderColor: 'border-red-300 dark:border-red-700',
+        iconColor: 'text-red-600 dark:text-red-400'
+      }
+    }
+  }
 
   const getStageColor = (stage: string) => {
     switch (stage) {
@@ -47,19 +91,15 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     if (!loanType) return 'N/A'
     
     if (loanType.includes('_')) {
-      // New combined format: "conventional_30yr"
       const [type, term] = loanType.split('_')
       const formattedType = type.toUpperCase()
       const formattedTerm = term.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM')
       return `${formattedType} ${formattedTerm}`
     } else {
-      // Old single format - could be just a type or just a term
       const standardTerms = ['10yr', '15yr', '20yr', '25yr', '30yr', '40yr', 'io', 'arm']
       if (standardTerms.includes(loanType)) {
-        // It's just a term, show it formatted with "LOAN" prefix
         return `LOAN ${loanType.replace('yr', 'Y').replace('io', 'IO').replace('arm', 'ARM').toUpperCase()}`
       } else {
-        // It's a loan type, show it
         return loanType.toUpperCase()
       }
     }
@@ -96,6 +136,8 @@ export const ClientCard: React.FC<ClientCardProps> = ({
     }
   }
 
+  const contactStatus = getContactStatus()
+
   return (
     <Card 
       hover 
@@ -103,7 +145,7 @@ export const ClientCard: React.FC<ClientCardProps> = ({
       onClick={onClick}
     >
       <CardContent className="p-6">
-        {/* Header with Avatar, Stage, and Delete */}
+        {/* Header with Avatar, Stage, Hot/Cold Badge, and Delete */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
@@ -120,6 +162,12 @@ export const ClientCard: React.FC<ClientCardProps> = ({
           </div>
           
           <div className="flex items-center space-x-2">
+            {/* 🔥 NEW: Hot/Cold Badge */}
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${contactStatus.bgColor} ${contactStatus.textColor} ${contactStatus.borderColor} backdrop-blur-sm`}>
+              <contactStatus.icon className={`w-3.5 h-3.5 ${contactStatus.iconColor}`} />
+              {contactStatus.label}
+            </div>
+            
             <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize backdrop-blur-sm ${getStageColor(client.current_stage)}`}>
               {client.current_stage}
             </span>
