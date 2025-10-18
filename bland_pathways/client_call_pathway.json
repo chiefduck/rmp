@@ -1,33 +1,16 @@
 {
     "nodes": [
       {
-        "id": "h8i9j0k1-2l3m-4n5o-6p7q-r8s9t0u1v2w3",
+        "id": "client-greeting-001",
         "data": {
           "name": "Client Greeting",
-          "prompt": "### # Background\nthis is a warm, friendly call to a homeowner who set a target refinance rate with their mortgage broker. they've been waiting for rates to drop, and now they finally have. this is good news for them - potential savings on their monthly mortgage payment. however, they might not be expecting this call, so we need to be warm and conversational, not pushy or sales-y.\n\nthe client might be busy, so we need to ask permission before launching into details. this shows respect for their time and makes them feel in control of the conversation. starting with \"good news\" creates positive anticipation and makes them more likely to want to hear what we have to say.\n\n### # Goal\ngreet the client warmly, mention it's from their broker's office, hint at good news, and ask if they have a minute to talk.\n\n### # Tone\nwarm and friendly, like calling a neighbor with good news. be natural and conversational. use their first name. smile when you talk - they can hear it in your voice. keep it brief but enthusiastic.",
+          "prompt": "### # Background\nthis is a warm, friendly call to a homeowner who set a target refinance rate with their mortgage broker. they've been waiting for rates to drop, and now they finally have. this is good news for them - potential savings on their monthly mortgage payment. however, they might not be expecting this call, so we need to be warm and conversational, not pushy or sales-y. the client might be busy, so we need to ask permission before launching into details.\n\n### # Goal\ngreet the client warmly, mention it's from their broker's office, hint at good news, ask if they have a minute, and extract their response about availability.\n\n### # Tone\nwarm and friendly, like calling a neighbor with good news. be natural and conversational. use their first name. smile when you talk - they can hear it in your voice. keep it brief but enthusiastic.",
           "isStart": true,
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "Hey {{first_name}}! This is calling from {{broker_name}}'s office. I've actually got some really good news for you - do you have just a quick minute?"
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 400,
-          "y": 100
-        }
-      },
-      {
-        "id": "i9j0k1l2-3m4n-5o6p-7q8r-s9t0u1v2w3x4",
-        "data": {
-          "name": "Check Availability",
-          "prompt": "### # Background\nwe've made our initial greeting and now need to see if the client has time to talk. some people will say yes immediately, others will say they're busy. we need to respect whatever they say. if they're busy, we'll ask when to call back instead of pushing forward.\n\n### # Goal\nlisten for whether they have time now or need a callback. route the conversation accordingly.\n\n### # Tone\npatient and respectful. be ready to accommodate their schedule without making them feel guilty if they're busy.",
           "extractVars": [
             [
               "client_availability",
               "string",
-              "Whether client can talk now",
+              "Whether client is available to talk now",
               false
             ]
           ],
@@ -37,148 +20,48 @@
         },
         "type": "Default",
         "position": {
-          "x": 400,
-          "y": 300
+          "x": 940,
+          "y": 100
         }
       },
       {
-        "id": "j0k1l2m3-4n5o-6p7q-8r9s-t0u1v2w3x4y5",
+        "id": "availability-router-001",
+        "data": {
+          "name": "Availability Router"
+        },
+        "type": "Route",
+        "position": {
+          "x": 940,
+          "y": 350
+        }
+      },
+      {
+        "id": "share-good-news",
         "data": {
           "name": "Share Good News",
-          "prompt": "### # Background\nthe client has said they have time to talk, so now we can share the good news. they set a target rate with their broker, and that rate has finally been hit. this is exciting for them - it means potential savings. we need to remind them of the context (their target rate) and then deliver the good news clearly.\n\n### # Goal\nremind them of their target rate and announce that it's been hit.\n\n### # Tone\nenthusiastic but natural. this is genuinely good news, so let that come through. don't be overly dramatic, just warm and positive.",
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "So, remember when you told {{broker_name}} you wanted to refinance if rates hit {{target_rate}}%? Well, great news - we just hit that today!"
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 400,
-          "y": 500
-        }
-      },
-      {
-        "id": "k1l2m3n4-5o6p-7q8r-9s0t-u1v2w3x4y5z6",
-        "data": {
-          "name": "Share Details",
-          "prompt": "### # Background\nnow that we've announced the good news, we need to give them the specific numbers. people want to know: what's the actual rate, and how much will this save me? we need to present this clearly and make it concrete. monthly savings are easier to grasp than annual savings, so lead with that.\n\n### # Goal\nshare the current rate and the monthly and annual savings they could expect.\n\n### # Tone\nclear and straightforward. let the numbers speak for themselves. pause after sharing to let it sink in.",
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "Current rates for your {{loan_type_full}} {{term_years}}-year are at {{market_rate}}%. That would save you about ${{monthly_savings}} per month, or over ${{annual_savings}} per year."
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 400,
-          "y": 700
-        }
-      },
-      {
-        "id": "l2m3n4o5-6p7q-8r9s-0t1u-v2w3x4y5z6a7",
-        "data": {
-          "name": "Gauge Interest",
-          "prompt": "### # Background\nwe've shared the good news and the numbers. now we need to see if they're interested in moving forward. this is the key moment - we're asking them to take action. frame it as an easy next step: would they like their broker to call them to discuss starting the process?\n\n### # Goal\nask if they'd like the broker to call them today to discuss next steps.\n\n### # Tone\npositive but not pushy. make it sound easy and natural. they're in control - it's their decision.",
+          "prompt": "### # Background\nthe client has said they have time to talk, so now we can share the good news. they set a target rate with their broker, and that rate has finally been hit. this is exciting for them - it means potential savings. we need to remind them of the context (their target rate) and then deliver the good news clearly. after sharing the details, we'll gauge their interest.\n\n### # Goal\nremind them of their target rate, announce it's been hit, share the savings numbers, ask if they want their broker to call them, and extract their response.\n\n### # Tone\nenthusiastic but natural. this is genuinely good news, so let that come through. don't be overly dramatic, just warm and positive.",
           "extractVars": [
             [
               "client_interest",
               "string",
-              "Client's level of interest",
+              "Client's level of interest in proceeding",
               false
             ]
           ],
           "pathwayExamples": [],
-          "dialogueExamples": [
-            "Would you like {{broker_name}} to give you a call today to discuss getting this started?"
-          ],
+          "dialogueExamples": [],
           "conditionExamples": []
         },
         "type": "Default",
         "position": {
-          "x": 400,
-          "y": 900
+          "x": 650,
+          "y": 600
         }
       },
       {
-        "id": "m3n4o5p6-7q8r-9s0t-1u2v-w3x4y5z6a7b8",
+        "id": "callback-requested",
         "data": {
-          "name": "Client Interested",
-          "prompt": "### # Background\nthe client has expressed interest in moving forward! this is the best outcome. they want to talk to their broker and potentially start the refinance process. we need to confirm that the broker will call them today and wrap up the conversation positively.\n\n### # Goal\nconfirm the broker will call today and end the conversation on a high note.\n\n### # Tone\nenthusiastic and positive. celebrate this with them. make them feel good about their decision.",
-          "extractVars": [
-            [
-              "pathway_result",
-              "string",
-              "client_interested",
-              true
-            ]
-          ],
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "That's awesome! {{broker_name}} will give you a call today to get everything rolling. You're going to love those savings!"
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 700,
-          "y": 1100
-        }
-      },
-      {
-        "id": "n4o5p6q7-8r9s-0t1u-2v3w-x4y5z6a7b8c9",
-        "data": {
-          "name": "Not Interested",
-          "prompt": "### # Background\nthe client has indicated they're not interested in moving forward. this could be for many reasons - timing isn't right, they're happy with their current rate, or they've decided not to refinance. whatever the reason, we need to respect their decision without pushing back or trying to change their mind.\n\n### # Goal\nacknowledge their decision gracefully and end the conversation positively.\n\n### # Tone\nunderstanding and respectful. no pressure, no guilt. just accept their decision and move on gracefully.",
-          "extractVars": [
-            [
-              "pathway_result",
-              "string",
-              "not_interested",
-              true
-            ]
-          ],
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "No problem at all, {{first_name}}! I totally understand. If anything changes, just give {{broker_name}} a call. Have a great day!"
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 100,
-          "y": 1100
-        }
-      },
-      {
-        "id": "o5p6q7r8-9s0t-1u2v-3w4x-y5z6a7b8c9d0",
-        "data": {
-          "name": "Already Refinanced",
-          "prompt": "### # Background\nthe client has already refinanced elsewhere or completed this process. this is actually good news - it means they took action and got a better rate. we should congratulate them and update our system so we don't call about this again.\n\n### # Goal\ncongratulate them, let them know we'll update their file, and end positively.\n\n### # Tone\ngenuinely happy for them. celebrate their success even though it wasn't with your broker.",
-          "extractVars": [
-            [
-              "pathway_result",
-              "string",
-              "already_refinanced",
-              true
-            ]
-          ],
-          "pathwayExamples": [],
-          "dialogueExamples": [
-            "Oh fantastic! I'm so glad you already took care of that. I'll update your file so we don't bother you about this again. Congrats on the new rate!"
-          ],
-          "conditionExamples": []
-        },
-        "type": "Default",
-        "position": {
-          "x": 400,
-          "y": 1300
-        }
-      },
-      {
-        "id": "p6q7r8s9-0t1u-2v3w-4x5y-z6a7b8c9d0e1",
-        "data": {
-          "name": "Callback Requested",
+          "name": "Schedule Callback",
           "prompt": "### # Background\nthe client indicated they're busy right now and can't talk. this is completely normal and we need to respect that. instead of pushing forward, we'll ask when would be a better time to call them back.\n\n### # Goal\nask when would be better and confirm we'll call back then.\n\n### # Tone\naccommodating and flexible. make them feel like their schedule matters to us.",
           "extractVars": [
             [
@@ -186,42 +69,87 @@
               "string",
               "When to call back",
               false
-            ],
-            [
-              "pathway_result",
-              "string",
-              "callback_requested",
-              true
             ]
           ],
           "pathwayExamples": [],
-          "dialogueExamples": [
-            "No problem at all! When would be a better time for me to call you back?",
-            "Perfect! I'll have {{broker_name}} reach out to you then. Have a great day!"
-          ],
+          "dialogueExamples": [],
           "conditionExamples": []
         },
         "type": "Default",
         "position": {
-          "x": 1000,
-          "y": 500
+          "x": 1250,
+          "y": 600
         }
       },
       {
-        "id": "q7r8s9t0-1u2v-3w4x-5y6z-a7b8c9d0e1f2",
+        "id": "interest-router-001",
+        "data": {
+          "name": "Interest Router"
+        },
+        "type": "Route",
+        "position": {
+          "x": 650,
+          "y": 850
+        }
+      },
+      {
+        "id": "client-interested",
+        "data": {
+          "name": "Client Interested",
+          "prompt": "### # Background\nthe client has expressed interest in moving forward! this is the best outcome. they want to talk to their broker and potentially start the refinance process. we need to confirm that the broker will call them today and wrap up the conversation positively.\n\n### # Goal\nconfirm the broker will call today and end the conversation on a high note.\n\n### # Tone\nenthusiastic and positive. celebrate this with them. make them feel good about their decision.",
+          "pathwayExamples": [],
+          "dialogueExamples": [],
+          "conditionExamples": []
+        },
+        "type": "Default",
+        "position": {
+          "x": 200,
+          "y": 1100
+        }
+      },
+      {
+        "id": "client-not-interested",
+        "data": {
+          "name": "Not Interested",
+          "prompt": "### # Background\nthe client has indicated they're not interested in moving forward. this could be for many reasons - timing isn't right, they're happy with their current rate, or they've decided not to refinance. whatever the reason, we need to respect their decision without pushing back or trying to change their mind.\n\n### # Goal\nacknowledge their decision gracefully and end the conversation positively.\n\n### # Tone\nunderstanding and respectful. no pressure, no guilt. just accept their decision and move on gracefully.",
+          "pathwayExamples": [],
+          "dialogueExamples": [],
+          "conditionExamples": []
+        },
+        "type": "Default",
+        "position": {
+          "x": 650,
+          "y": 1100
+        }
+      },
+      {
+        "id": "already-refinanced",
+        "data": {
+          "name": "Already Refinanced",
+          "prompt": "### # Background\nthe client has already refinanced elsewhere or completed this process. this is actually good news - it means they took action and got a better rate. we should congratulate them and update our system so we don't call about this again.\n\n### # Goal\ncongratulate them, let them know we'll update their file, and end positively.\n\n### # Tone\ngenuinely happy for them. celebrate their success even though it wasn't with your broker.",
+          "pathwayExamples": [],
+          "dialogueExamples": [],
+          "conditionExamples": []
+        },
+        "type": "Default",
+        "position": {
+          "x": 1100,
+          "y": 1100
+        }
+      },
+      {
+        "id": "client-end-call",
         "data": {
           "name": "End Call",
           "prompt": "### # Background\nthe conversation is complete. we've either scheduled a broker callback, the client wasn't interested, or they've already refinanced. time to end the call warmly.\n\n### # Goal\nend the call on a positive note.\n\n### # Tone\nwarm and friendly. leave them with a good impression.",
           "pathwayExamples": [],
-          "dialogueExamples": [
-            "Take care!"
-          ],
+          "dialogueExamples": [],
           "conditionExamples": []
         },
         "type": "End Call",
         "position": {
-          "x": 400,
-          "y": 1500
+          "x": 650,
+          "y": 1350
         }
       },
       {
@@ -232,159 +160,149 @@
     ],
     "edges": [
       {
-        "id": "reactflow__edge-h8i9j0k1-i9j0k1l2",
+        "id": "edge-greeting-to-availability",
         "data": {
           "label": "Greeting delivered",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "h8i9j0k1-2l3m-4n5o-6p7q-r8s9t0u1v2w3",
-        "target": "i9j0k1l2-3m4n-5o6p-7q8r-s9t0u1v2w3x4"
+        "source": "client-greeting-001",
+        "target": "availability-router-001"
       },
       {
-        "id": "reactflow__edge-i9j0k1l2-j0k1l2m3",
+        "id": "edge-available-to-news",
         "data": {
-          "label": "Client available now",
+          "label": "Client is available",
           "condition": [
             {
               "field": "client_availability",
-              "value": "yes|sure|go ahead|okay|tell me",
+              "value": "yes",
               "operator": "contains"
             }
           ],
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "i9j0k1l2-3m4n-5o6p-7q8r-s9t0u1v2w3x4",
-        "target": "j0k1l2m3-4n5o-6p7q-8r9s-t0u1v2w3x4y5"
+        "source": "availability-router-001",
+        "target": "share-good-news"
       },
       {
-        "id": "reactflow__edge-i9j0k1l2-p6q7r8s9",
+        "id": "edge-busy-to-callback",
         "data": {
-          "label": "Client busy",
+          "label": "Client is busy",
           "condition": [
             {
               "field": "client_availability",
-              "value": "no|busy|not a good time|later|call back",
+              "value": "busy",
               "operator": "contains"
             }
           ],
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "i9j0k1l2-3m4n-5o6p-7q8r-s9t0u1v2w3x4",
-        "target": "p6q7r8s9-0t1u-2v3w-4x5y-z6a7b8c9d0e1"
+        "source": "availability-router-001",
+        "target": "callback-requested"
       },
       {
-        "id": "reactflow__edge-j0k1l2m3-k1l2m3n4",
+        "id": "edge-news-to-interest",
         "data": {
           "label": "Good news shared",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "j0k1l2m3-4n5o-6p7q-8r9s-t0u1v2w3x4y5",
-        "target": "k1l2m3n4-5o6p-7q8r-9s0t-u1v2w3x4y5z6"
+        "source": "share-good-news",
+        "target": "interest-router-001"
       },
       {
-        "id": "reactflow__edge-k1l2m3n4-l2m3n4o5",
+        "id": "edge-interested",
         "data": {
-          "label": "Details shared",
-          "isHighlighted": false
-        },
-        "type": "custom",
-        "source": "k1l2m3n4-5o6p-7q8r-9s0t-u1v2w3x4y5z6",
-        "target": "l2m3n4o5-6p7q-8r9s-0t1u-v2w3x4y5z6a7"
-      },
-      {
-        "id": "reactflow__edge-l2m3n4o5-m3n4o5p6",
-        "data": {
-          "label": "Client interested",
+          "label": "Client is interested",
           "condition": [
             {
               "field": "client_interest",
-              "value": "yes|absolutely|definitely|sounds good|interested|let's do it",
+              "value": "interested",
               "operator": "contains"
             }
           ],
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "l2m3n4o5-6p7q-8r9s-0t1u-v2w3x4y5z6a7",
-        "target": "m3n4o5p6-7q8r-9s0t-1u2v-w3x4y5z6a7b8"
+        "source": "interest-router-001",
+        "target": "client-interested"
       },
       {
-        "id": "reactflow__edge-l2m3n4o5-n4o5p6q7",
+        "id": "edge-not-interested",
         "data": {
           "label": "Not interested",
           "condition": [
             {
               "field": "client_interest",
-              "value": "not interested|no thanks|not right now|changed my mind",
+              "value": "not interested",
               "operator": "contains"
             }
           ],
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "l2m3n4o5-6p7q-8r9s-0t1u-v2w3x4y5z6a7",
-        "target": "n4o5p6q7-8r9s-0t1u-2v3w-x4y5z6a7b8c9"
+        "source": "interest-router-001",
+        "target": "client-not-interested"
       },
       {
-        "id": "reactflow__edge-l2m3n4o5-o5p6q7r8",
+        "id": "edge-already-done",
         "data": {
           "label": "Already refinanced",
           "condition": [
             {
               "field": "client_interest",
-              "value": "already refinanced|already did|already done|closed already",
+              "value": "already",
               "operator": "contains"
             }
           ],
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "l2m3n4o5-6p7q-8r9s-0t1u-v2w3x4y5z6a7",
-        "target": "o5p6q7r8-9s0t-1u2v-3w4x-y5z6a7b8c9d0"
+        "source": "interest-router-001",
+        "target": "already-refinanced"
       },
       {
-        "id": "reactflow__edge-m3n4o5p6-q7r8s9t0",
+        "id": "edge-interested-to-end",
         "data": {
           "label": "Call ended",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "m3n4o5p6-7q8r-9s0t-1u2v-w3x4y5z6a7b8",
-        "target": "q7r8s9t0-1u2v-3w4x-5y6z-a7b8c9d0e1f2"
+        "source": "client-interested",
+        "target": "client-end-call"
       },
       {
-        "id": "reactflow__edge-n4o5p6q7-q7r8s9t0",
+        "id": "edge-not-interested-to-end",
         "data": {
           "label": "Call ended",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "n4o5p6q7-8r9s-0t1u-2v3w-x4y5z6a7b8c9",
-        "target": "q7r8s9t0-1u2v-3w4x-5y6z-a7b8c9d0e1f2"
+        "source": "client-not-interested",
+        "target": "client-end-call"
       },
       {
-        "id": "reactflow__edge-o5p6q7r8-q7r8s9t0",
+        "id": "edge-already-to-end",
         "data": {
           "label": "Call ended",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "o5p6q7r8-9s0t-1u2v-3w4x-y5z6a7b8c9d0",
-        "target": "q7r8s9t0-1u2v-3w4x-5y6z-a7b8c9d0e1f2"
+        "source": "already-refinanced",
+        "target": "client-end-call"
       },
       {
-        "id": "reactflow__edge-p6q7r8s9-q7r8s9t0",
+        "id": "edge-callback-to-end",
         "data": {
           "label": "Callback scheduled",
           "isHighlighted": false
         },
         "type": "custom",
-        "source": "p6q7r8s9-0t1u-2v3w-4x5y-z6a7b8c9d0e1",
-        "target": "q7r8s9t0-1u2v-3w4x-5y6z-a7b8c9d0e1f2"
+        "source": "callback-requested",
+        "target": "client-end-call"
       }
     ]
   }

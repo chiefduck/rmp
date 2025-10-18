@@ -4,6 +4,8 @@ import { Phone, Mail, DollarSign, Calendar, Edit, MessageSquare, User, Trash2, F
 import { Card, CardContent } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Client } from '../../lib/supabase'
+import { ClientNotificationStatus } from '../Clients/ClientNotificationStatus'
+import { RefiEligibilityStatus } from '../Clients/RefiEligibilityStatus'
 
 interface ClientCardProps {
   client: Client
@@ -215,6 +217,23 @@ export const ClientCard: React.FC<ClientCardProps> = ({
               {formatDate(client.last_contact)}
             </span>
           </div>
+        </div>
+
+        {/* Notification Status */}
+        <div className="mb-4">
+          <ClientNotificationStatus 
+            client={client} 
+            onUpdate={() => {
+              // Refresh the card by calling parent refresh if available
+              // For now, just log the update
+              console.log('Client notification status updated')
+            }} 
+          />
+        </div>
+
+        {/* Refi Eligibility Status */}
+        <div className="mb-4">
+          <RefiEligibilityStatus client={client} />
         </div>
 
         {/* Action Buttons */}

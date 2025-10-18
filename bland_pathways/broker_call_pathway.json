@@ -1,290 +1,239 @@
 {
   "nodes": [
     {
-      "id": "a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
+      "id": "broker-greeting-final",
       "data": {
-        "name": "Broker Greeting",
-        "prompt": "### # Background\nthis is a quick rate alert call to a mortgage broker. the broker is busy and values efficiency. they've set up alerts for when their clients hit target rates, and now one of their clients has hit that rate. the broker needs to make a quick decision: will they call the client personally, or should we reach out on their behalf? this is a time-sensitive opportunity, and the broker needs to act fast. we need to respect their time while providing all the key information they need to make an informed decision.\n\nthe broker might be in the middle of other tasks, so we need to get straight to the point. they're familiar with the system and know what these calls are about, so we don't need lengthy explanations. what they need is: who hit their target rate, what the numbers are, and what action they want to take. the tone should be professional, direct, and respectful of their expertise and time.\n\n### # Goal\nquickly inform the broker that their client hit the target rate, share the key numbers (loan type, current rate vs target, monthly savings), and ask for their decision on next steps.\n\n### # Tone\nprofessional and efficient. no small talk or fluff. speak like you're calling a busy professional who values their time. be direct and to the point. use natural speech patterns but keep it concise. avoid corporate jargon. think of it like leaving a clear voicemail message - give all necessary info quickly and clearly.",
+        "name": "Broker Rate Alert",
+        "prompt": "### # Background\nthis is a quick rate alert call to a mortgage broker. the broker is busy and values efficiency. they've set up alerts for when their clients hit target rates, and now one of their clients has hit that rate. we need to deliver the key information quickly: who hit their rate, what the numbers are, and what action they want to take. be direct, professional, and respectful of their time.\n\n### # Goal\ndeliver the rate alert, share the key numbers, ask for their decision on next steps, and extract their response.\n\n### # Tone\nprofessional and efficient. no small talk. get straight to the point. deliver info like a clear voicemail message - concise and complete.",
         "isStart": true,
-        "pathwayExamples": [],
-        "dialogueExamples": [
-          "Hi {{broker_name}}, this is your rate alert system. Quick update - {{first_name}} {{last_name}} just hit their target rate.",
-          "{{loan_type_full}} {{term_years}}-year at {{market_rate}}%, their target was {{target_rate}}%. Monthly savings would be around ${{monthly_savings}}."
-        ],
-        "conditionExamples": []
-      },
-      "type": "Default",
-      "position": {
-        "x": 400,
-        "y": 100
-      }
-    },
-    {
-      "id": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "data": {
-        "name": "Get Broker Decision",
-        "prompt": "### # Background\nthe broker now has the key information and needs to make a decision. they have two main options: handle this client personally, or let us reach out to the client. some brokers prefer to maintain personal relationships with key clients, while others appreciate the automation. we need to give them a clear choice and respect whatever decision they make.\n\nthe broker might respond in different ways - they might say \"I'll call them\", \"go ahead and call\", \"not interested\", or they might point out if the information is wrong. we need to be prepared to route the conversation based on their response. listen carefully for key phrases that indicate their decision.\n\n### # Goal\nask the broker directly whether they want to call the client personally or if we should reach out. listen for their response and route accordingly.\n\n### # Tone\ndirect and clear. give them a simple choice. don't oversell or pressure. just present the options and wait for their decision. be ready to acknowledge whatever they choose.",
         "extractVars": [
           [
             "broker_decision",
             "string",
-            "Broker's decision on next steps",
+            "The broker's response about how to proceed",
             false
           ]
         ],
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "Would you like me to reach out to them, or will you handle this personally?"
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "Default",
       "position": {
-        "x": 400,
-        "y": 300
+        "x": 940,
+        "y": 100
       }
     },
     {
-      "id": "c3d4e5f6-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
+      "id": "decision-router-final",
+      "data": {
+        "name": "Decision Router"
+      },
+      "type": "Route",
+      "position": {
+        "x": 940,
+        "y": 350
+      }
+    },
+    {
+      "id": "broker-will-call-final",
       "data": {
         "name": "Broker Will Call",
-        "prompt": "### # Background\nthe broker has decided to handle this client personally. this is great - it means they value the relationship and want to maintain that personal touch. we need to confirm we understand their decision, acknowledge it positively, and end the call efficiently. we'll update our system to mark that the broker is handling this, which will prevent us from calling the client.\n\n### # Goal\nconfirm the broker will handle it personally, thank them, and end the call.\n\n### # Tone\npositive and professional. acknowledge their decision briefly and wrap up quickly. they have work to do.",
-        "extractVars": [
-          [
-            "pathway_result",
-            "string",
-            "broker_will_call",
-            true
-          ]
-        ],
+        "prompt": "### # Background\nthe broker has decided to handle this client personally. acknowledge their decision positively and end the call efficiently.\n\n### # Goal\nconfirm the broker will handle it personally, thank them, and end the call.\n\n### # Tone\npositive and professional. acknowledge briefly and wrap up quickly.",
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "Perfect! I'll mark that you're handling this personally. Have a great day!"
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "Default",
       "position": {
-        "x": 700,
-        "y": 500
+        "x": 200,
+        "y": 600
       }
     },
     {
-      "id": "d4e5f6g7-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
+      "id": "proceed-with-client-final",
       "data": {
-        "name": "Proceed With Client Call",
-        "prompt": "### # Background\nthe broker has given us the green light to reach out to the client. this is the automation working as intended - the broker trusts us to make the initial contact. we need to confirm we understand, let them know when we'll reach out, and assure them they'll be notified of the result.\n\n### # Goal\nconfirm we'll call the client, set expectations, and end the call.\n\n### # Tone\nconfident and professional. reassure them we'll handle it well and keep them in the loop.",
-        "extractVars": [
-          [
-            "pathway_result",
-            "string",
-            "proceed_with_client",
-            true
-          ]
-        ],
+        "name": "Proceed With Client",
+        "prompt": "### # Background\nthe broker has given us the green light to reach out to the client. confirm we understand and will handle it.\n\n### # Goal\nconfirm we'll call the client and end the call.\n\n### # Tone\nconfident and professional. reassure them we'll handle it well.",
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "Great! We'll reach out to {{first_name}} today and you'll get notified of the result."
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "Default",
       "position": {
-        "x": 400,
-        "y": 500
+        "x": 650,
+        "y": 600
       }
     },
     {
-      "id": "e5f6g7h8-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
+      "id": "not-interested-final",
       "data": {
         "name": "Not Interested",
-        "prompt": "### # Background\nthe broker has indicated they don't want to pursue this lead. this could be for various reasons - client already refinanced elsewhere, broker knows something we don't, or they've decided this isn't a good fit. we need to respect their decision without pushing back or questioning it.\n\n### # Goal\nacknowledge their decision, confirm we won't proceed, and end the call professionally.\n\n### # Tone\nrespectful and understanding. no questions asked. just acknowledge and move on.",
-        "extractVars": [
-          [
-            "pathway_result",
-            "string",
-            "not_interested",
-            true
-          ]
-        ],
+        "prompt": "### # Background\nthe broker has indicated they don't want to pursue this lead. respect their decision without pushing back.\n\n### # Goal\nacknowledge their decision and end the call professionally.\n\n### # Tone\nrespectful and understanding. no questions asked.",
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "No problem! I'll update the status and we won't proceed. Thanks for letting me know!"
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "Default",
       "position": {
-        "x": 100,
-        "y": 500
+        "x": 1150,
+        "y": 600
       }
     },
     {
-      "id": "f6g7h8i9-0j1k-2l3m-4n5o-p6q7r8s9t0u1",
+      "id": "data-issue-final",
       "data": {
         "name": "Data Issue",
-        "prompt": "### # Background\nthe broker has pointed out that something in our information is incorrect. this is serious - we can't make calls with bad data. we need to apologize, take responsibility, and assure them we'll flag this for immediate review. the broker's trust is crucial, and admitting when we have an error is important.\n\n### # Goal\napologize for the error, confirm we'll review the data, and assure them we won't make any calls until it's corrected.\n\n### # Tone\napologetic but professional. take responsibility without being overly emotional. be solution-focused.",
-        "extractVars": [
-          [
-            "pathway_result",
-            "string",
-            "data_issue",
-            true
-          ]
-        ],
+        "prompt": "### # Background\nthe broker has pointed out that our information is incorrect. apologize and assure them we'll flag this for review.\n\n### # Goal\napologize for the error and confirm we'll review the data.\n\n### # Tone\napologetic but professional. be solution-focused.",
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "I apologize for the error. I'll flag this for immediate review and we won't make any calls until it's corrected."
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "Default",
       "position": {
-        "x": 1000,
-        "y": 500
+        "x": 1650,
+        "y": 600
       }
     },
     {
-      "id": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2",
+      "id": "end-call-final",
       "data": {
         "name": "End Call",
-        "prompt": "### # Background\nthe call is complete. all necessary information has been exchanged and a decision has been made. time to end professionally.\n\n### # Goal\nend the call courteously.\n\n### # Tone\nbrief and professional.",
+        "prompt": "### # Background\nthe call is complete. time to end professionally.\n\n### # Goal\nend the call courteously.\n\n### # Tone\nbrief and professional.",
         "pathwayExamples": [],
-        "dialogueExamples": [
-          "Thanks for your time!"
-        ],
+        "dialogueExamples": [],
         "conditionExamples": []
       },
       "type": "End Call",
       "position": {
-        "x": 400,
-        "y": 700
+        "x": 940,
+        "y": 850
       }
     },
     {
       "globalConfig": {
-        "globalPrompt": "# Background\nyou're an AI assistant making quick, professional rate alert calls to mortgage brokers. your job is to deliver information efficiently and get a decision. brokers are busy professionals who value their time, so every word counts. be direct, clear, and professional. avoid small talk, filler words, and unnecessary explanations. think of yourself as a reliable assistant who delivers important updates concisely.\n\n# Goal\ndeliver rate alert information and get a clear decision from the broker in under 90 seconds.\n\n# Tone\nprofessional and efficient. speak naturally but concisely. no corporate jargon. be respectful of their time and expertise. when the broker makes a decision, acknowledge it and move on quickly. if they're unclear, ask for clarification once, then default to the safest option (not calling the client)."
+        "globalPrompt": "# Background\nyou're an AI assistant making quick, professional rate alert calls to mortgage brokers. your job is to deliver information efficiently and get a decision. brokers are busy professionals who value their time, so every word counts. be direct, clear, and professional. avoid small talk, filler words, and unnecessary explanations.\n\n# Goal\ndeliver rate alert information and get a clear decision from the broker in under 90 seconds.\n\n# Tone\nprofessional and efficient. speak naturally but concisely. no corporate jargon. be respectful of their time and expertise. when the broker makes a decision, acknowledge it and move on quickly."
       }
     }
   ],
   "edges": [
     {
-      "id": "reactflow__edge-a1b2c3d4-b2c3d4e5",
+      "id": "edge-greeting-to-router-final",
       "data": {
-        "label": "Information delivered",
+        "label": "Information delivered and response received",
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "a1b2c3d4-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
-      "target": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7"
+      "source": "broker-greeting-final",
+      "target": "decision-router-final"
     },
     {
-      "id": "reactflow__edge-b2c3d4e5-c3d4e5f6",
+      "id": "edge-router-to-broker-call-final",
       "data": {
         "label": "Broker will call personally",
         "condition": [
           {
             "field": "broker_decision",
-            "value": "I'll call|I will call|I'll handle|personally|let me call|I got it",
+            "value": "personally",
             "operator": "contains"
           }
         ],
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "target": "c3d4e5f6-7g8h-9i0j-1k2l-m3n4o5p6q7r8"
+      "source": "decision-router-final",
+      "target": "broker-will-call-final"
     },
     {
-      "id": "reactflow__edge-b2c3d4e5-d4e5f6g7",
+      "id": "edge-router-to-proceed-final",
       "data": {
         "label": "Proceed with client call",
         "condition": [
           {
             "field": "broker_decision",
-            "value": "go ahead|yes call|please call|reach out|call them|proceed",
+            "value": "please call",
             "operator": "contains"
           }
         ],
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "target": "d4e5f6g7-8h9i-0j1k-2l3m-n4o5p6q7r8s9"
+      "source": "decision-router-final",
+      "target": "proceed-with-client-final"
     },
     {
-      "id": "reactflow__edge-b2c3d4e5-e5f6g7h8",
+      "id": "edge-router-to-not-interested-final",
       "data": {
         "label": "Not interested",
         "condition": [
           {
             "field": "broker_decision",
-            "value": "not interested|don't call|no thanks|pass|skip",
+            "value": "not interested",
             "operator": "contains"
           }
         ],
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "target": "e5f6g7h8-9i0j-1k2l-3m4n-o5p6q7r8s9t0"
+      "source": "decision-router-final",
+      "target": "not-interested-final"
     },
     {
-      "id": "reactflow__edge-b2c3d4e5-f6g7h8i9",
+      "id": "edge-router-to-data-issue-final",
       "data": {
         "label": "Data issue reported",
         "condition": [
           {
             "field": "broker_decision",
-            "value": "wrong|incorrect|that's not right|error|mistake",
+            "value": "wrong",
             "operator": "contains"
           }
         ],
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "b2c3d4e5-6f7g-8h9i-0j1k-l2m3n4o5p6q7",
-      "target": "f6g7h8i9-0j1k-2l3m-4n5o-p6q7r8s9t0u1"
+      "source": "decision-router-final",
+      "target": "data-issue-final"
     },
     {
-      "id": "reactflow__edge-c3d4e5f6-g7h8i9j0",
+      "id": "edge-broker-call-to-end-final",
       "data": {
-        "label": "Call ended",
+        "label": "Call concluded",
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "c3d4e5f6-7g8h-9i0j-1k2l-m3n4o5p6q7r8",
-      "target": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2"
+      "source": "broker-will-call-final",
+      "target": "end-call-final"
     },
     {
-      "id": "reactflow__edge-d4e5f6g7-g7h8i9j0",
+      "id": "edge-proceed-to-end-final",
       "data": {
-        "label": "Call ended",
+        "label": "Call concluded",
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "d4e5f6g7-8h9i-0j1k-2l3m-n4o5p6q7r8s9",
-      "target": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2"
+      "source": "proceed-with-client-final",
+      "target": "end-call-final"
     },
     {
-      "id": "reactflow__edge-e5f6g7h8-g7h8i9j0",
+      "id": "edge-not-interested-to-end-final",
       "data": {
-        "label": "Call ended",
+        "label": "Call concluded",
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "e5f6g7h8-9i0j-1k2l-3m4n-o5p6q7r8s9t0",
-      "target": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2"
+      "source": "not-interested-final",
+      "target": "end-call-final"
     },
     {
-      "id": "reactflow__edge-f6g7h8i9-g7h8i9j0",
+      "id": "edge-data-issue-to-end-final",
       "data": {
-        "label": "Call ended",
+        "label": "Call concluded",
         "isHighlighted": false
       },
       "type": "custom",
-      "source": "f6g7h8i9-0j1k-2l3m-4n5o-p6q7r8s9t0u1",
-      "target": "g7h8i9j0-1k2l-3m4n-5o6p-q7r8s9t0u1v2"
+      "source": "data-issue-final",
+      "target": "end-call-final"
     }
   ]
 }

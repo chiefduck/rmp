@@ -1,10 +1,9 @@
 // src/pages/AutoCalling.tsx - AI CALLING WITH DELETE/ARCHIVE
 import React, { useState, useEffect } from 'react'
-import { Phone, TrendingUp, Clock, Zap, CheckCircle, XCircle, RefreshCw, Search, Plus, BarChart3, List, Trash2, Archive, Eye, EyeOff } from 'lucide-react'
+import { Phone, TrendingUp, Clock, Zap, CheckCircle, XCircle, RefreshCw, Search, BarChart3, List, Trash2, Archive, Eye, EyeOff } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { useConfirm } from '../hooks/useConfirm'
 import { CallDetailModal } from '../components/AutoCalling/CallDetailModal'
-import { ManualCallTrigger } from '../components/AutoCalling/ManualCallTrigger'
 import { 
   TotalCallsModal, 
   SuccessRateModal, 
@@ -51,7 +50,6 @@ export const AutoCalling: React.FC = () => {
   // Modal state
   const [selectedCall, setSelectedCall] = useState<CallLogEntry | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
-  const [showCallTrigger, setShowCallTrigger] = useState(false)
   
   // Stats Modal states
   const [showTotalCallsModal, setShowTotalCallsModal] = useState(false)
@@ -381,13 +379,6 @@ export const AutoCalling: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
-              onClick={() => setShowCallTrigger(true)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Call Client Now
-            </Button>
             <Button onClick={handleRefresh} loading={refreshing} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
@@ -608,10 +599,7 @@ export const AutoCalling: React.FC = () => {
                   description={showArchived 
                     ? 'Archived calls will appear here. You can restore them anytime.'
                     : 'Start making AI-powered calls to see activity here.'}
-                  action={!showArchived && callLogs.length === 0 ? {
-                    label: 'Make Your First Call',
-                    onClick: () => setShowCallTrigger(true)
-                  } : undefined}
+                  action={undefined}
                 />
               ) : (
                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -745,13 +733,6 @@ export const AutoCalling: React.FC = () => {
           call={selectedCall}
         />
 
-        <ManualCallTrigger
-          isOpen={showCallTrigger}
-          onClose={() => setShowCallTrigger(false)}
-          onCallInitiated={() => {
-            fetchData()
-          }}
-        />
 
         <TotalCallsModal
           isOpen={showTotalCallsModal}

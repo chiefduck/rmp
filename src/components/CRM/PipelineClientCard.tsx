@@ -3,6 +3,8 @@ import React, { useState } from 'react'
 import { Phone, Mail, Edit, Trash2, Archive, RotateCcw, MoveRight } from 'lucide-react'
 import { Client } from '../../lib/supabase'
 import { StageSelectorModal } from './StageSelectorModal'
+import { ClientNotificationStatus } from '../Clients/ClientNotificationStatus'
+import { RefiEligibilityStatus } from '../Clients/RefiEligibilityStatus'
 
 interface PipelineClientCardProps {
   client: Client
@@ -189,6 +191,17 @@ export const PipelineClientCard: React.FC<PipelineClientCardProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Notification and Refi Status */}
+          <div className="space-y-2 mb-3">
+            <ClientNotificationStatus 
+              client={client} 
+              onUpdate={() => {
+                console.log('Client notification status updated')
+              }} 
+            />
+            <RefiEligibilityStatus client={client} compact />
           </div>
 
           {/* Mobile Stage Selector - NEW BOTTOM SHEET BUTTON */}

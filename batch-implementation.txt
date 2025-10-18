@@ -1,0 +1,204 @@
+claude-code "Implement complete broker notification batching system with UI overhaul.
+
+═══════════════════════════════════════════════════════════
+PHASE 1: BACKEND - Batch Call System
+═══════════════════════════════════════════════════════════
+
+FILE: supabase/functions/make-call/index.ts
+
+CHANGES:
+1. Update interface:
+   OLD: interface CallRequest { clientId: string; userId: string; callType?: string }
+   NEW: interface BatchCallRequest { broker_id: string; mortgage_id?: string }
+
+2. Main function flow:
+   - Get broker_id (from request OR derive from mortgage via get_broker_from_mortgage RPC)
+   - SAFETY CHECK: Query broker_notifications WHERE broker_id = X AND notification_date = today
+   - If exists: return early with { success: false, message: 'Already notified today', notification_id: X }
+   - Query broker_rate_alerts view WHERE broker_id = X
+   - If no alerts: return { success: false, message: 'No clients hitting target' }
+   - Get broker profile (profiles table)
+   - Build client summary:
+     * 1 client: detailed message with name, rate, savings
+     * 2-3 clients: \"Your clients [names] all hit their targets\"
+     * 4+ clients: \"You have X clients with rates at target levels\"
+   - Prepare client_details JSON array with all client info for email
+   - Make ONE Bland call with BROKER_BATCH_PATHWAY_ID
+   - Log to broker_notifications (broker_id, notification_date, client_count, client_ids array, call_id, call_status='initiated')
+   - Log each client to notification_clients (notification_id, client_id, mortgage_id, client_name, current_rate, target_rate, loan_amount, savings_amount)
+   - Log to call_logs for history
+   - Decrement calls_remaining
+   - Return success with call_id, notification_id, client_count, clients array
+
+3. ADD HELPER FUNCTION (export it for use in webhook):
+   export async function makeClientCall(clientId: string, supabaseClient: any, blandApiKey: string) {
+     - Get client with mortgage JOIN
+     - Get current market rate from rate_history
+     - Calculate monthly savings (reuse existing calculateMonthlySavings function)
+     - Get broker profile for variables
+     - Build pathway variables (first_name, last_name, broker_name, rates, savings, etc)
+     - Make Bland call with CLIENT_PATHWAY_ID
+     - Log to call_logs
+     - Update client.last_called_at
+     - Return { success: true, call_id: X }
+   }
+
+═══════════════════════════════════════════════════════════
+PHASE 2: WEBHOOK - Handle Broker Actions
+═══════════════════════════════════════════════════════════
+
+FILE: supabase/functions/bland-webhook-public/index.ts
+
+ADD LOGIC:
+1. Check if metadata.call_type === 'broker_batch'
+2. If yes, handle broker batch webhook:
+   
+   - Get call_id from webhook body
+   - Query broker_notifications WHERE call_id = X
+   - Extract broker_preference from webhook body (check pathway_result or variables)
+   - Update broker_notifications: call_status = 'completed', broker_action = preference
+   
+   BRANCH ON PREFERENCE:
+   
+   A) IF preference contains \"email\" or \"send\" or \"list\":
+      - Query notification_clients WHERE notification_id = X JOIN with clients and mortgages
+      - Build HTML email with table:
+        * Subject: \"{count} Client{s} Hit Target Rate\"
+        * HTML table with: Name | Current Rate | Target | Loan | Savings | Phone | Email
+        * Professional styling with company branding
+      - Send via Resend:
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': \`Bearer \${Deno.env.get('RESEND_API_KEY')}\`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'Rate Alerts <alerts@ratemonitorpro.com>',
+            to: broker.email,
+            subject: subject,
+            html: emailHtml
+          })
+        })
+      - Update broker_notifications: email_sent = true, email_sent_at = NOW()
+      - Log to email_logs table
+   
+   B) IF preference contains \"call\" or \"reach out\":
+      - Query notification_clients WHERE notification_id = X
+      - For each client:
+        * Import/reuse makeClientCall function from make-call
+        * Call makeClientCall(client.client_id, supabase, BLAND_API_KEY)
+        * Add 30 second delay: await new Promise(r => setTimeout(r, 30000))
+        * Log progress
+      - Update broker_notifications: broker_action = 'call_clients'
+   
+   C) IF preference contains \"myself\" or \"personally\" or \"I'll\" or \"handle\":
+      - Get all client_ids from notification_clients
+      - UPDATE clients SET broker_contacted_at = NOW() WHERE id IN (client_ids)
+      - Update broker_notifications: broker_action = 'handle_myself'
+
+3. Add error handling and logging for all branches
+
+═══════════════════════════════════════════════════════════
+PHASE 3: UI - Remove Manual Calls, Add Automation Status
+═══════════════════════════════════════════════════════════
+
+FILE: src/components/AutoCalling/ManualCallTrigger.tsx
+ACTION: DELETE THIS FILE (no longer needed for fully automated system)
+
+FILE: src/pages/AutoCalling.tsx
+CHANGES:
+1. Remove \"Call Client Now\" button entirely
+2. Remove any manual call trigger UI
+3. Keep the page but focus on:
+   - Showing automated call history
+   - Displaying notification status
+   - Showing which clients need attention
+
+ADD NEW COMPONENT: src/components/Clients/ClientNotificationStatus.tsx
+Create a new component that shows:
+- 🎯 Badge if target_hit (current_rate <= target_rate)
+- ✅ \"Contacted X ago\" if broker_contacted_at exists
+- ⏳ \"Notification pending\" if target hit but not contacted
+- Last notification date from broker_notifications
+- \"Mark as Contacted\" button
+
+CODE STRUCTURE:
+\`\`\`typescript
+export function ClientNotificationStatus({ client, mortgage }) {
+  const targetHit = mortgage.current_rate <= mortgage.target_rate
+  const contacted = client.broker_contacted_at
+  
+  const handleMarkContacted = async () => {
+    // Confirmation dialog
+    if (!confirm('Mark this client as contacted?')) return
+    
+    // Update database
+    await supabase
+      .from('clients')
+      .update({ 
+        broker_contacted_at: new Date().toISOString(),
+        contact_notes: 'Manually marked as contacted'
+      })
+      .eq('id', client.id)
+    
+    // Refresh UI
+    toast.success('Client marked as contacted')
+  }
+  
+  return (
+    <div className=\"flex items-center gap-2\">
+      {targetHit && <Badge>🎯 Target Hit</Badge>}
+      
+      {contacted ? (
+        <span className=\"text-sm text-muted-foreground\">
+          ✅ Contacted {formatDistanceToNow(new Date(contacted), { addSuffix: true })}
+        </span>
+      ) : targetHit ? (
+        <>
+          <span className=\"text-sm text-yellow-600\">⏳ Action needed</span>
+          <Button 
+            variant=\"outline\" 
+            size=\"sm\"
+            onClick={handleMarkContacted}
+          >
+            ✓ Mark as Contacted
+          </Button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+\`\`\`
+
+FIND AND UPDATE: Client card component (wherever clients are displayed)
+- Look for client list/grid display
+- Add <ClientNotificationStatus client={client} mortgage={mortgage} />
+- Remove any existing call buttons
+- Style to show alert status prominently
+
+FIND AND UPDATE: Dashboard or main client view
+- Remove ManualCallTrigger import and usage
+- Add notification summary widget:
+  * \"X clients hit target rate\"
+  * \"Last notification: [date]\"
+  * \"Next check: [tomorrow at X time]\"
+
+═══════════════════════════════════════════════════════════
+PHASE 4: EMAIL TEMPLATE
+═══════════════════════════════════════════════════════════
+
+Create professional HTML email template in webhook with proper styling and client data table.
+
+═══════════════════════════════════════════════════════════
+IMPORTANT NOTES
+═══════════════════════════════════════════════════════════
+
+- Keep existing CLIENT_PATHWAY_ID: 9d2c24e4-6f3d-4648-9ceb-c47c30238667
+- Keep BROKER_BATCH_PATHWAY_ID: 10a3e2ba-d1f5-49e1-9b1e-a15d1d8a597e
+- Use formatDistanceToNow from date-fns for time displays
+- Add console.log for debugging
+- Handle all errors gracefully
+- Check environment variables exist (RESEND_API_KEY, BLAND_API_KEY)
+- Import toast from shadcn/ui for notifications
+- Use existing Supabase client patterns"
