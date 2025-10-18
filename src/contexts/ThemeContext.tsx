@@ -1,12 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useAuth } from './AuthContext'
+import React, { createContext, useContext, useEffect } from 'react'
 
 interface ThemeContextType {
-  theme: 'light' | 'dark'
-  toggleTheme: () => void
+  theme: 'dark'
 }
 
-const ThemeContext = createContext<ThemeContextType>({} as ThemeContextType)
+const ThemeContext = createContext<ThemeContextType>({ theme: 'dark' })
 
 export const useTheme = () => {
   const context = useContext(ThemeContext)
@@ -17,52 +15,20 @@ export const useTheme = () => {
 }
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile, updateProfile } = useAuth()
-  
-  // Initialize theme from localStorage or system preference
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
+  // Always use dark mode
+  const theme = 'dark' as const
 
-  // Apply theme to document immediately when theme changes
+  // Ensure dark class is always present on document root
   useEffect(() => {
     const root = document.documentElement
+    root.classList.add('dark')
     
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    
-    // Save to localStorage
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  // Sync with profile theme when available
-  useEffect(() => {
-    if (profile?.theme && profile.theme !== theme) {
-      setTheme(profile.theme)
-    }
-  }, [profile?.theme])
-
-  const toggleTheme = async () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-    
-    // Save to profile if available
-    if (profile && updateProfile) {
-      try {
-        await updateProfile({ theme: newTheme })
-      } catch (error) {
-        console.error('Failed to save theme preference:', error)
-      }
-    }
-  }
+    // Clear any old theme from localStorage
+    localStorage.removeItem('theme')
+  }, [])
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme }}>
       {children}
     </ThemeContext.Provider>
   )

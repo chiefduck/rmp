@@ -7,6 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// 🎯 BLAND PATHWAY IDS
+const BROKER_PATHWAY_ID = '10a3e2ba-d1f5-49e1-9b1e-a15d1d8a597e'
+const CLIENT_PATHWAY_ID = '9d2c24e4-6f3d-4648-9ceb-c47c30238667'
+
 interface CallRequest {
   clientId: string
   userId: string
@@ -196,8 +200,8 @@ serve(async (req) => {
 
     const annualSavings = monthlySavings * 12
 
-    // 🎯 DYNAMIC VARIABLES FOR SCRIPTS
-    const vars = {
+    // 🎯 DYNAMIC VARIABLES FOR PATHWAYS
+    const pathwayVariables = {
       // Client info
       first_name: client.first_name,
       last_name: client.last_name,
@@ -209,15 +213,15 @@ serve(async (req) => {
 
       // Loan details
       loan_type: mortgage.loan_type || 'conventional',
-      loan_type_full: `${mortgage.loan_type || 'conventional'} ${mortgage.term_years || 30}-year`,
+      loan_type_full: `${(mortgage.loan_type || 'conventional').charAt(0).toUpperCase() + (mortgage.loan_type || 'conventional').slice(1)}`,
       loan_amount: mortgage.loan_amount?.toLocaleString() || '300,000',
       term_years: mortgage.term_years || 30,
       lender: mortgage.lender || 'your current lender',
 
       // Rates
-      current_rate: mortgage.current_rate?.toFixed(3) || 'N/A',
-      target_rate: mortgage.target_rate?.toFixed(3) || 'N/A',
-      market_rate: currentMarketRate.toFixed(3),
+      current_rate: mortgage.current_rate?.toFixed(2) || 'N/A',
+      target_rate: mortgage.target_rate?.toFixed(2) || 'N/A',
+      market_rate: currentMarketRate.toFixed(2),
 
       // Savings
       monthly_savings: monthlySavings.toLocaleString(),
@@ -225,7 +229,7 @@ serve(async (req) => {
       lifetime_savings: (annualSavings * mortgage.term_years).toLocaleString()
     }
 
-    console.log('✅ Dynamic variables prepared:', vars)
+    console.log('✅ Pathway variables prepared:', pathwayVariables)
 
     const results = {
       brokerCallId: null as string | null,
@@ -250,49 +254,26 @@ serve(async (req) => {
           body: JSON.stringify({
             phone_number: profile.broker_phone_number,
 
+            // 🎯 USE PATHWAY INSTEAD OF TASK
+            pathway_id: BROKER_PATHWAY_ID,
+
+            // 🎯 PATHWAY VARIABLES (replaces old task script)
+            request_data: pathwayVariables,
+
             // 🎯 CONVERSATIONAL AI SETTINGS
             wait_for_greeting: true,
             interruption_threshold: 400,
-            temperature: 0.7,
-            language: 'eng',
-            background_track: 'none',
-
-            // 📞 BROKER SCRIPT - PROFESSIONAL & TO-THE-POINT (with dynamic variables)
-            task: `You are calling ${vars.broker_name} with a time-sensitive client opportunity.
-
-RULES:
-- Wait for them to answer and greet you first
-- Be brief and professional - they're busy
-- Get straight to the point
-- Answer questions if asked, but keep it concise
-
-SCRIPT:
-When they greet you, say:
-
-"Hi, this is your rate alert system. Quick update - ${vars.first_name} ${vars.last_name} just hit their target rate."
-
-Pause briefly, then deliver the key info:
-
-"${vars.loan_type_full} dropped to ${vars.market_rate}%, target was ${vars.target_rate}%. Monthly savings: $${vars.monthly_savings}."
-
-Then ask:
-
-"Your system will call ${vars.first_name} in 2 minutes. Want to reach out personally instead?"
-
-Wait for their response:
-- If YES: "Perfect, I'll cancel the automated call. Good luck!"
-- If NO: "Got it, the call will go out in 2 minutes."
-- If they have questions: Answer briefly and professionally
-
-Keep it under 90 seconds. They're busy, so respect their time.`,
-
             voice: 'maya',
+            language: 'eng',
             max_duration: 3,
             webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
+            
+            // 📊 METADATA FOR TRACKING
             metadata: {
               call_type: 'broker',
               user_id: userId,
-              client_id: clientId
+              client_id: clientId,
+              pathway_id: BROKER_PATHWAY_ID
             }
           })
         })
@@ -347,81 +328,27 @@ Keep it under 90 seconds. They're busy, so respect their time.`,
           body: JSON.stringify({
             phone_number: client.phone,
 
+            // 🎯 USE PATHWAY INSTEAD OF TASK
+            pathway_id: CLIENT_PATHWAY_ID,
+
+            // 🎯 PATHWAY VARIABLES (replaces old task script)
+            request_data: pathwayVariables,
+
             // 🎯 CONVERSATIONAL AI SETTINGS
             wait_for_greeting: true,
             interruption_threshold: 400,
-            temperature: 0.7,
-            language: 'eng',
-            background_track: 'none',
-
-            // 💬 CLIENT SCRIPT - WARM, NATURAL & CONVERSATIONAL (with dynamic variables)
-            task: `You are a friendly assistant calling ${vars.first_name} ${vars.last_name} on behalf of ${vars.broker_name} at ${vars.company}.
-
-PERSONALITY:
-- Warm and conversational (like a helpful friend)
-- Natural pauses and questions
-- Listen actively and respond to what they say
-- Never robotic or scripted-sounding
-- Genuinely excited about helping them save money
-
-RULES:
-- Wait for them to say "hello" before speaking
-- Let them interrupt you - it means they're engaged!
-- If they're busy, offer to call back later
-- If they ask questions, answer naturally
-- Keep the conversation flowing - this isn't a monologue!
-
-OPENING:
-When they answer, wait for their greeting, then say:
-
-"Hey ${vars.first_name}! This is ${vars.broker_name}'s office calling. I've actually got some really good news for you - do you have just a quick minute?"
-
-[Wait for response. If YES, continue. If NO/BUSY, say: "No problem! What's a better time to call you back?"]
-
-THE GOOD NEWS:
-"So here's the exciting part - ${vars.loan_type} mortgage rates just dropped to ${vars.market_rate}%, which is exactly what you've been waiting for!"
-
-[Pause - let them react]
-
-THE SAVINGS:
-"By refinancing now, you'd save about $${vars.monthly_savings} every month. That's over $${vars.annual_savings} a year back in your pocket!"
-
-[Pause - let them respond]
-
-THE ASK:
-"Would you like ${vars.broker_name} to give you a call in the next day or two to go over your options and get the ball rolling?"
-
-[Wait for response]
-
-HANDLING RESPONSES:
-- If INTERESTED: "Awesome! ${vars.broker_name} will reach out within 24 hours. You're going to love these savings!"
-- If MAYBE/UNSURE: "Totally understand! Would you like some time to think about it? We can always call back."
-- If NOT INTERESTED: "No worries at all! If anything changes and you want to look at rates, just let us know. Have a great day!"
-- If QUESTIONS: Answer naturally and conversationally
-
-ADDITIONAL CONTEXT (use if they ask):
-- Current lender: ${vars.lender}
-- Your loan is with ${vars.lender}
-- Your ${vars.loan_type_full} loan
-- Over the life of the loan, that's about $${vars.lifetime_savings} in total savings
-
-TONE EXAMPLES:
-❌ DON'T SAY: "I am calling to inform you about mortgage rate opportunities."
-✅ DO SAY: "Hey! Got some really good news about your mortgage rates!"
-
-❌ DON'T SAY: "This represents a monthly savings of..."
-✅ DO SAY: "You'd save about $${vars.monthly_savings} every month - pretty nice, right?"
-
-Remember: You're having a CONVERSATION with a real person. Be warm, natural, and genuinely helpful. Let them guide the conversation. Aim for 2-3 minutes, but let it flow naturally!`,
-
             voice: 'maya',
+            language: 'eng',
             max_duration: 5,
             webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/bland-webhook-public`,
+            
+            // 📊 METADATA FOR TRACKING
             metadata: {
               call_type: 'client',
               user_id: userId,
               client_id: clientId,
-              mortgage_id: mortgage.id
+              mortgage_id: mortgage.id,
+              pathway_id: CLIENT_PATHWAY_ID
             }
           })
         })
@@ -483,17 +410,21 @@ Remember: You're having a CONVERSATION with a real person. Be warm, natural, and
         clientCallId: results.clientCallId,
         error: results.error,
         message: results.brokerCallId && results.clientCallId
-          ? 'Called broker and client successfully'
+          ? 'Called broker and client successfully using pathways'
           : results.brokerCallId
-            ? 'Called broker successfully'
+            ? 'Called broker successfully using pathway'
             : results.clientCallId
-              ? 'Called client successfully'
+              ? 'Called client successfully using pathway'
               : 'No calls were made',
         // Return calculated values for debugging
         debug: {
           market_rate: currentMarketRate,
           monthly_savings: monthlySavings,
-          annual_savings: annualSavings
+          annual_savings: annualSavings,
+          pathways_used: {
+            broker: BROKER_PATHWAY_ID,
+            client: CLIENT_PATHWAY_ID
+          }
         }
       }),
       {
@@ -516,3 +447,28 @@ Remember: You're having a CONVERSATION with a real person. Be warm, natural, and
     )
   }
 })
+
+/* 
+🎯 CHANGES MADE:
+1. ✅ Added BROKER_PATHWAY_ID and CLIENT_PATHWAY_ID constants at top
+2. ✅ Replaced 'task' field with 'pathway_id' in both Bland API calls
+3. ✅ Renamed 'vars' to 'pathwayVariables' for clarity
+4. ✅ Changed variables to 'request_data' (Bland's format for pathway variables)
+5. ✅ Added pathway_id to metadata for tracking
+6. ✅ Removed old task scripts - pathways handle all conversation logic
+7. ✅ All dynamic variables still calculated and passed to pathways
+8. ✅ All existing functionality preserved (calculations, validations, logging)
+
+🎤 PATHWAYS IN USE:
+- Broker: 10a3e2ba-d1f5-49e1-9b1e-a15d1d8a597e
+- Client: 9d2c24e4-6f3d-4648-9ceb-c47c30238667
+
+📊 VARIABLES PASSED TO PATHWAYS:
+All these work in your pathway scripts using {{variable_name}}:
+- {{first_name}}, {{last_name}}, {{full_name}}
+- {{broker_name}}, {{company}}
+- {{loan_type}}, {{loan_type_full}}, {{term_years}}
+- {{current_rate}}, {{target_rate}}, {{market_rate}}
+- {{monthly_savings}}, {{annual_savings}}, {{lifetime_savings}}
+- {{loan_amount}}, {{lender}}
+*/

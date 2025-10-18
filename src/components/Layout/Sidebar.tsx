@@ -8,13 +8,10 @@ import {
   Settings, 
   CreditCard,
   Home,
-  Moon,
-  Sun,
   LogOut,
   X
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useTheme } from '../../contexts/ThemeContext'
 
 interface SidebarProps {
   className?: string
@@ -23,7 +20,6 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ className = '', onClose }) => {
   const { signOut } = useAuth()
-  const { theme, toggleTheme } = useTheme()
 
   const navigation = [
     { path: '/dashboard', label: 'Dashboard', icon: Home },
