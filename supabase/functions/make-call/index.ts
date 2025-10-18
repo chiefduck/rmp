@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 // 🎯 BLAND PATHWAY IDS
-const BROKER_BATCH_PATHWAY_ID = '10a3e2ba-d1f5-49e1-9b1e-a15d1d8a597e'
+const BROKER_BATCH_PATHWAY_ID = 'ef6cf864-817a-4091-9a8b-695524dbbedc'
 const CLIENT_PATHWAY_ID = '9d2c24e4-6f3d-4648-9ceb-c47c30238667'
 
 interface BatchCallRequest {
